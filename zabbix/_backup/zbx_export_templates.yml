@@ -1,10 +1,19 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-05-26T12:49:03Z'
+  date: '2022-05-26T23:53:40Z'
   groups:
+    -
+      uuid: cc825539265b4ae3b1a53d72b65a1483
+      name: GIA
     -
       uuid: aeeab3d998ad4d0fbdc8bebad30ff971
       name: 'GIA. AVS Hosts'
+    -
+      uuid: e31865ba28834a5da4832a0a8cbcfe04
+      name: 'GIA. EGE'
+    -
+      uuid: f520e3292aa3492680c452bdbcf47efd
+      name: 'GIA. OGE'
     -
       uuid: 40cf779a2dfe48ada568cc8363fb2279
       name: 'GIA. Service'
@@ -13,7 +22,12 @@ zabbix_export:
       uuid: 18d83fc228904100ad154b17f46d83db
       template: 'GIA Template. AVS Monitoring'
       name: 'GIA Template. AVS Monitoring'
+      templates:
+        -
+          name: 'GIA Template. Scheduler Service'
       groups:
+        -
+          name: GIA
         -
           name: 'GIA. AVS Hosts'
       items:
@@ -22,6 +36,7 @@ zabbix_export:
           name: 'Check AVS Monitoring RTSP'
           type: HTTP_AGENT
           key: avs.monitoring.rtsp
+          history: '0'
           trends: '0'
           value_type: TEXT
           authtype: BASIC
@@ -55,13 +70,37 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.rtsp.results
           delay: '0'
+          history: 1d
           trends: '0'
           value_type: TEXT
           preprocessing:
             -
-              type: JSONPATH
+              type: JAVASCRIPT
               parameters:
-                - $.results
+                - |
+                  var x = JSON.parse(value).results;
+                  var result = new Object({})
+                    
+                  for (var i in x) {
+                    c = i.substr(0,4) + "_" + x[i]["title"].substr(2,4) + "_" + x[i]["title"].substr(7)
+                    result[c] = {
+                      code:         c,
+                      id:           i,
+                      name:         x[i].title,
+                      comment:      x[i].comment,
+                      creationTime: new Date(x[i].creationTimestamp).toLocaleString(),
+                      upTime:       x[i].upTime,
+                      appname:      x[i].appname,
+                      ip:           x[i].ip,
+                      type:         x[i].type,
+                      online:       x[i].onine,
+                      audio:        x[i].audio,
+                      video:        x[i].video,
+                      pullSettings: x[i].pullSettings
+                    }
+                  }
+                    
+                  return JSON.stringify(result)
           master_item:
             key: avs.monitoring.rtsp
           tags:
@@ -73,7 +112,7 @@ zabbix_export:
           name: 'Check AVS Monitoring Sys'
           type: HTTP_AGENT
           key: avs.monitoring.sys
-          history: 2d
+          history: '0'
           trends: '0'
           value_type: TEXT
           authtype: BASIC
@@ -234,26 +273,27 @@ zabbix_export:
             -
               type: JAVASCRIPT
               parameters:
-                - |2
-                    var x = JSON.parse(value).cam_list;
-                    var result = new Object({})
+                - |
+                  var x = JSON.parse(value).cam_list;
+                  var result = new Object({})
                     
-                    for (var i in x) {
-                      c = i.substr(0,4) + "_" + x[i]["name"].substr(2,4) + "_" + x[i]["name"].substr(7)
-                      result[c] = {
-                        code: c,
-                        id: i,
-                        name: x[i].name,
-                        comment: x[i].comment,
-                        remoteUrl: x[i].remoteUrl,
-                        playUrl: x[i].playUrl,
-                        pull: x[i].pull,
-                        push: x[i].push,
-                        rec: x[i].rec,
-                      }
+                  for (var i in x) {
+                    c = i.substr(0,4) + "_" + x[i]["name"].substr(2,4) + "_" + x[i]["name"].substr(7)
+                    result[c] = {
+                      code:      c,
+                      id:        i,
+                      name:      x[i].name,
+                      comment:   x[i].comment,
+                      remoteUrl: x[i].remoteUrl,
+                      playUrl:   x[i].playUrl,
+                      pull:     (x[i].pull == "") ? "SWITCHEDOFF" : x[i].pull,
+                      push:     (x[i].push == "") ? "SWITCHEDOFF" : x[i].push,
+                      rec:      (x[i].rec  == "") ? "SWITCHEDOFF" : x[i].rec,
                     }
+                  }
                     
-                    return JSON.stringify(result)
+                  return JSON.stringify(result)
+                  
           master_item:
             key: avs.monitoring.sys
           tags:
@@ -303,7 +343,68 @@ zabbix_export:
           type: DEPENDENT
           key: avs.discovery.cam
           delay: '0'
+          lifetime: '0'
           item_prototypes:
+            -
+              uuid: 022d975e9bd74a7e998ef21629010c06
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Exam Invoved. Today'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},exam.invoved.today]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      if (value == "NO EXAM TODAY") return "NO"
+                      var x = JSON.parse(value);
+                      var z = '{#AVSCAMCODE}'
+                      var ppe = z.substr(0,4)
+                      var aud = z.substr(5,4)
+                      return (x.hasOwnProperty(ppe) && x[ppe].hasOwnProperty(aud)) ? "YES" : "NO"
+              master_item:
+                key: gia.current_scheduler.today_exam_list
+              tags:
+                -
+                  tag: exam
+                  value: today
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: bc3c68e716074a41b1ef67fbcb049959
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Exam Invoved. Tomorrow'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},exam.invoved.tomorrow]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      if (value == "NO EXAM TOMORROW") return "NO"
+                      var x = JSON.parse(value);
+                      var z = '{#AVSCAMCODE}'
+                      var ppe = z.substr(0,4)
+                      var aud = z.substr(5,4)
+                      return (x.hasOwnProperty(ppe) && x[ppe].hasOwnProperty(aud)) ? "YES" : "NO"
+              master_item:
+                key: gia.current_scheduler.tomorrow_exam_list
+              tags:
+                -
+                  tag: exam
+                  value: tomorrow
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
             -
               uuid: 82e13960c3c24997b75167605479186b
               name: 'AVS IP-Cam "{#AVSCAMCODE}". Pull Status (Stream Local View)'
@@ -367,6 +468,338 @@ zabbix_export:
                 -
                   tag: software
                   value: avs
+            -
+              uuid: 5f13f9d9fbb64216b659d3f3142a30e4
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Dropped'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.drop]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].audio.droppedBytesCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 3ae1beef8a78473f8aef332ae228175f
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Sended Delta'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send.delta]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send]'
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 4c372b4cc6d0402bbc17697d27d61870
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Sended'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].audio.bytesCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: e84c36231bd842d9bc6ff8ce3fa33632
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Dropped'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.drop]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].audio.droppedPacketsCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: a56045a20a97461481397713a20b8c55
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Sended Delta'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send.delta]'
+              delay: '0'
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send]'
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 58e809097ed64a89b1caf92a033c2b32
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Sended'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].audio.packetsCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 3d7504e651c3401fa793d09356afbd3f
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Codec'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.acodec]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].audio.codec'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+              trigger_prototypes:
+                -
+                  uuid: 6fe046d4b43147c098df1213818a9dee
+                  expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)="AUNK"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)<>"AUNK"'
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP AUNK'
+                  priority: DISASTER
+            -
+              uuid: b613f2f8df054fc48e80a7c6c9d58beb
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Dropped'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.drop]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].video.droppedBytesCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: c8beed3ee2004aa58935666d8df6476f
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Sended Delta'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send.delta]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send]'
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: d039c54a968a44a592ed106521950cf2
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Sended'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].video.bytesCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 4ff63520e08f4435931737a6bffa284d
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Dropped'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.drop]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].video.droppedPacketsCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 56e8e727178d40c29da9ab684b377bff
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Sended Delta'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send.delta]'
+              delay: '0'
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send]'
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 71a2fdbcc9984182a747fb3230e52ac2
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Sended'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].video.packetsCount'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: 9241075c773b40c3bc93d522b9935fb4
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Codec'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rtsp.vcodec]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].video.codec'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: NOSTREAM
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+              trigger_prototypes:
+                -
+                  uuid: a554b3f32ef14ce9823c51e9a61cc853
+                  expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)="VUNK"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)<>"VUNK"'
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
+                  priority: DISASTER
           master_item:
             key: avs.monitoring.sys.cam_dist
           preprocessing:
@@ -391,15 +824,198 @@ zabbix_export:
           tag: software
           value: avs
     -
+      uuid: 016534f8f39f48c28917797e73a1502f
+      template: 'GIA Template. EGE'
+      name: 'GIA Template. EGE'
+      groups:
+        -
+          name: GIA
+        -
+          name: 'GIA. EGE'
+      macros:
+        -
+          macro: '{$GIASCHEDULERURL}'
+          value: 'http://result.rcoi71.ru:83/aud_online.php'
+          description: 'FCT dump from RCOI'
+    -
+      uuid: 25ddb396a0ca43f78b333254d586a7d8
+      template: 'GIA Template. OGE'
+      name: 'GIA Template. OGE'
+      groups:
+        -
+          name: GIA
+        -
+          name: 'GIA. OGE'
+      macros:
+        -
+          macro: '{$GIASCHEDULERURL}'
+          value: 'http://result.rcoi71.ru:83/aud9_online.php'
+          description: 'FCT dump from RCOI'
+    -
       uuid: cac8a50998914544914d7e9d735f8fcd
       template: 'GIA Template. Scheduler Service'
       name: 'GIA Template. Scheduler Service'
       groups:
         -
+          name: GIA
+        -
           name: 'GIA. Service'
       items:
         -
           uuid: b8c1e2af6552496b8db2bd4aa4667079
+          name: 'GIA. Current Scheduler'
+          type: SCRIPT
+          key: gia.current_scheduler
+          trends: '0'
+          value_type: TEXT
+          params: 'return 0'
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var s = '<!DOCTYPE HTML> \
+                  <html lang="ru"> \
+                  	<head> \
+                  		<title>Аудитории он-лайн</title>	\
+                  		<meta charset="UTF-8"> \
+                  		<style> \
+                  			.table_dark { \
+                  			font-size: 14px; \
+                  			text-align: center; \
+                  			border-collapse: collapse; \
+                  			background: #fff; \
+                  			margin: 10px; \
+                  			} \
+                  			.table_dark td { \
+                  			color: #252F48; \
+                  			border-bottom: 1px solid #37B5A5; \
+                  			border-right:1px solid #37B5A5; \
+                  			padding: 7px 17px; \
+                  			} \
+                  			.table_dark tr:last-child td { \
+                  			border-bottom: none; \
+                  			} \
+                  			.table_dark td:last-child { \
+                  			border-right: none; \
+                  			} \
+                  			.table_dark tr:hover td { \
+                  			text-decoration: underline; \
+                  			} \
+                  		</style> \
+                  	</head> \
+                  	<body> \
+                  		<table class="table_dark"><td><b>Дата</b></td><td><b>КодППЭ</b></td><td><b>КодАудитории</b></td><td><b>On-line</b></td><td><b>ОВЗ</b></td><td><b>КодМО</b></td><td><b>МО</b></td><td><b>КодПредм</b></td><td><b>Предмет</b></td><td><b>Волна</b></td><tr><td>2022.05.27</td><td>124</td><td>0001</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>51</td><td>Русский язык</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0002</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>52</td><td>Математика</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0003</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>55</td><td>Информатика</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0004</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>57</td><td>История</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0005</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>62</td><td>Обществознание</td><td>0</td></tr></table>	</body> \
+                          </html>'
+                  
+                  return s
+            -
+              type: REGEX
+              parameters:
+                - '(\<\/td\>\<tr\>.*\<\/table>)'
+                - \1
+            -
+              type: STR_REPLACE
+              parameters:
+                - '</td><tr>'
+                - '<table><tr>'
+            -
+              type: XML_TO_JSON
+              parameters:
+                - ''
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  const dict = new Object()
+                  for (var i in x["table"]["tr"]) {
+                      var dat = x["table"]["tr"][i]["td"][0]
+                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
+                      var aud = x["table"]["tr"][i]["td"][2]
+                      
+                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
+                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object({"0000": ["1","0"], "7777": ["1", "0"]}) }
+                      
+                      dict[dat][ppe][aud] = [
+                          x["table"]["tr"][i]["td"][3], // online
+                          x["table"]["tr"][i]["td"][4], // ovz
+                      ]
+                  }
+                  var result = JSON.stringify(dict)
+                  return result
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 7535f3d576fd4ebb9880129ab271b990
+          name: 'GIA. Current Scheduler. Today Examing List'
+          type: DEPENDENT
+          key: gia.current_scheduler.today_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date()
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TODAY"
+          master_item:
+            key: gia.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 32b3fa19d47e4ae6b6ef3b0dc0129183
+          name: 'GIA. Current Scheduler. Tomorrow Examing List'
+          type: DEPENDENT
+          key: gia.current_scheduler.tomorrow_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date(new Date().getTime() + 86400000)
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TOMORROW"
+          master_item:
+            key: gia.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: ege
+      tags:
+        -
+          tag: gia
+          value: service
+    -
+      uuid: 940509da38b34196a03e251c15439e66
+      template: 'GIA Template. Scheduler Service__BACKUP'
+      name: 'GIA Template. Scheduler Service__BACKUP'
+      groups:
+        -
+          name: GIA
+        -
+          name: 'GIA. Service'
+      items:
+        -
+          uuid: d0ee97d25c6346b1886935bb358c7c8c
           name: 'GIA. EGE. Get Current Scheduler'
           type: HTTP_AGENT
           key: gia.ege.get.current_scheduler
@@ -452,7 +1068,7 @@ zabbix_export:
               tag: gia
               value: service
         -
-          uuid: 7535f3d576fd4ebb9880129ab271b990
+          uuid: d3b0f19aa89d4aaba0d67e22bc584ed4
           name: 'GIA. EGE. Get Current Scheduler. Today Examing List'
           type: DEPENDENT
           key: gia.ege.get.current_scheduler.today_exam_list
@@ -478,7 +1094,7 @@ zabbix_export:
               tag: gia
               value: ege
         -
-          uuid: 32b3fa19d47e4ae6b6ef3b0dc0129183
+          uuid: 1bccf481bc534f0faf1d5b5b421021a6
           name: 'GIA. EGE. Get Current Scheduler. Tomorrow Examing List'
           type: DEPENDENT
           key: gia.ege.get.current_scheduler.tomorrow_exam_list
@@ -504,7 +1120,7 @@ zabbix_export:
               tag: gia
               value: ege
         -
-          uuid: 50e3cd849b7342b89357ee0f9e0b4613
+          uuid: cadbe1e4dbe544d18257a2b46fbcbc64
           name: 'GIA. OGE. Get Current Scheduler'
           type: HTTP_AGENT
           key: gia.oge.get.current_scheduler
@@ -564,7 +1180,7 @@ zabbix_export:
               tag: gia
               value: service
         -
-          uuid: 227b5293f6c647fe99618a92edf1ed1d
+          uuid: c8decd4085e14b1abb57dbc394431b49
           name: 'GIA. OGE. Get Current Scheduler. Today Examing List'
           type: DEPENDENT
           key: gia.oge.get.current_scheduler.today_exam_list
@@ -590,7 +1206,7 @@ zabbix_export:
               tag: gia
               value: oge
         -
-          uuid: 0a5ebc3fccf449d0be6957af6df9bbb8
+          uuid: 72aa5c2570c34ace990fc9685659de22
           name: 'GIA. OGE. Get Current Scheduler. Tomorrow Examing List'
           type: DEPENDENT
           key: gia.oge.get.current_scheduler.tomorrow_exam_list

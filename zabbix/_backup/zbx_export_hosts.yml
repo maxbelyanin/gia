@@ -1,16 +1,19 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-05-26T12:49:43Z'
+  date: '2022-05-26T23:54:13Z'
   groups:
+    -
+      uuid: cc825539265b4ae3b1a53d72b65a1483
+      name: GIA
     -
       uuid: aeeab3d998ad4d0fbdc8bebad30ff971
       name: 'GIA. AVS Hosts'
     -
+      uuid: f520e3292aa3492680c452bdbcf47efd
+      name: 'GIA. OGE'
+    -
       uuid: f09807b601144698ba7e7d95217e7117
       name: 'GIA. PPE Network IP-cam'
-    -
-      uuid: 40cf779a2dfe48ada568cc8363fb2279
-      name: 'GIA. Service'
     -
       uuid: dc579cd7a1a34222933f24f52a68bcd8
       name: 'Linux servers'
@@ -24,10 +27,16 @@ zabbix_export:
         -
           name: 'GIA Template. AVS Monitoring'
         -
+          name: 'GIA Template. OGE'
+        -
           name: 'Linux by Zabbix agent'
       groups:
         -
+          name: GIA
+        -
           name: 'GIA. AVS Hosts'
+        -
+          name: 'GIA. OGE'
         -
           name: 'Linux servers'
       interfaces:
@@ -37,6 +46,11 @@ zabbix_export:
       tags:
         -
           tag: gia
+      macros:
+        -
+          macro: '{$AVSCAMPROXYONNUM}'
+          value: '0'
+          description: '"Proxy ON" AVS IP-Cams number'
       inventory_mode: DISABLED
     -
       host: '0124_0000_0'
@@ -61,25 +75,4 @@ zabbix_export:
         -
           macro: '{$PASSWORD}'
           type: SECRET_TEXT
-      inventory_mode: DISABLED
-    -
-      host: 'RCOI FCT DATABASE'
-      name: 'RCOI FCT DATABASE'
-      templates:
-        -
-          name: 'GIA Template. Scheduler Service'
-      groups:
-        -
-          name: 'GIA. Service'
-      interfaces:
-        -
-          useip: 'NO'
-          ip: ''
-          dns: result.rcoi71.ru
-          port: '83'
-          interface_ref: if1
-      tags:
-        -
-          tag: gia
-          value: service
       inventory_mode: DISABLED
