@@ -1,0 +1,85 @@
+zabbix_export:
+  version: '6.0'
+  date: '2022-05-26T12:49:43Z'
+  groups:
+    -
+      uuid: aeeab3d998ad4d0fbdc8bebad30ff971
+      name: 'GIA. AVS Hosts'
+    -
+      uuid: f09807b601144698ba7e7d95217e7117
+      name: 'GIA. PPE Network IP-cam'
+    -
+      uuid: 40cf779a2dfe48ada568cc8363fb2279
+      name: 'GIA. Service'
+    -
+      uuid: dc579cd7a1a34222933f24f52a68bcd8
+      name: 'Linux servers'
+  hosts:
+    -
+      host: '0124'
+      name: '0124'
+      proxy:
+        name: '0124'
+      templates:
+        -
+          name: 'GIA Template. AVS Monitoring'
+        -
+          name: 'Linux by Zabbix agent'
+      groups:
+        -
+          name: 'GIA. AVS Hosts'
+        -
+          name: 'Linux servers'
+      interfaces:
+        -
+          ip: 10.103.120.66
+          interface_ref: if1
+      tags:
+        -
+          tag: gia
+      inventory_mode: DISABLED
+    -
+      host: '0124_0000_0'
+      name: '0124_0000_0'
+      proxy:
+        name: '0124'
+      templates:
+        -
+          name: 'Hikvision camera by HTTP'
+      groups:
+        -
+          name: 'GIA. PPE Network IP-cam'
+      interfaces:
+        -
+          ip: 192.168.254.10
+          port: '80'
+          interface_ref: if1
+      tags:
+        -
+          tag: gia
+      macros:
+        -
+          macro: '{$PASSWORD}'
+          type: SECRET_TEXT
+      inventory_mode: DISABLED
+    -
+      host: 'RCOI FCT DATABASE'
+      name: 'RCOI FCT DATABASE'
+      templates:
+        -
+          name: 'GIA Template. Scheduler Service'
+      groups:
+        -
+          name: 'GIA. Service'
+      interfaces:
+        -
+          useip: 'NO'
+          ip: ''
+          dns: result.rcoi71.ru
+          port: '83'
+          interface_ref: if1
+      tags:
+        -
+          tag: gia
+          value: service
+      inventory_mode: DISABLED

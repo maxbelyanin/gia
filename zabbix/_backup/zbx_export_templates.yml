@@ -1,0 +1,621 @@
+zabbix_export:
+  version: '6.0'
+  date: '2022-05-26T12:49:03Z'
+  groups:
+    -
+      uuid: aeeab3d998ad4d0fbdc8bebad30ff971
+      name: 'GIA. AVS Hosts'
+    -
+      uuid: 40cf779a2dfe48ada568cc8363fb2279
+      name: 'GIA. Service'
+  templates:
+    -
+      uuid: 18d83fc228904100ad154b17f46d83db
+      template: 'GIA Template. AVS Monitoring'
+      name: 'GIA Template. AVS Monitoring'
+      groups:
+        -
+          name: 'GIA. AVS Hosts'
+      items:
+        -
+          uuid: b2ebb33207ab4bdcb5cf4e6b2545f6f6
+          name: 'Check AVS Monitoring RTSP'
+          type: HTTP_AGENT
+          key: avs.monitoring.rtsp
+          trends: '0'
+          value_type: TEXT
+          authtype: BASIC
+          username: monitoring
+          password: Vjybnjhbyu
+          url: 'http://localhost/monitoring/rtsp'
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 0a96dd287eae4838bee74f0cd11ad07b
+          name: 'Check AVS Monitoring RTSP. Num Results'
+          type: DEPENDENT
+          key: avs.monitoring.rtsp.num_results
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.num_results
+          master_item:
+            key: avs.monitoring.rtsp
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 47dbf82c51f4421dbeb75ce03349b393
+          name: 'Check AVS Monitoring RTSP. Results'
+          type: DEPENDENT
+          key: avs.monitoring.rtsp.results
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.results
+          master_item:
+            key: avs.monitoring.rtsp
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 82c6cebd1809432da80a802c04d70e05
+          name: 'Check AVS Monitoring Sys'
+          type: HTTP_AGENT
+          key: avs.monitoring.sys
+          history: 2d
+          trends: '0'
+          value_type: TEXT
+          authtype: BASIC
+          username: monitoring
+          password: Vjybnjhbyu
+          url: 'http://localhost/monitoring/sys'
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 7e1709426358420394ad651415eab5c7
+          name: 'Check AVS Monitoring Sys. AVS Version'
+          type: DEPENDENT
+          key: avs.monitoring.sys.avsVersion
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.avsVersion
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 8ee6739ff9c747f0909ddc864e7cf7cb
+          name: 'Check AVS Monitoring Sys. Cams. All'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_all
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_all
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 16e2b49076944dd79e6bf4fc73d4a1a3
+          name: 'Check AVS Monitoring Sys. Cams. Proxy. Off'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_proxy_off
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_proxy_off
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 5616c7f58e0342cbb3f4ceec92319d51
+          name: 'Check AVS Monitoring Sys. Cams. Proxy. On'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_proxy_on
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_proxy_on
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 387f4496c15341b29d46f876445dd7d2
+          name: 'Check AVS Monitoring Sys. Cams. Proxy. Waiting'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_proxy_waiting
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_proxy_waiting
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: d29f8e27ef33425aa38aee9d2de97a25
+          name: 'Check AVS Monitoring Sys. Cams. Rec. Off'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_rec_off
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_rec_off
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 9a35b9b3f2be45b7a01a2b886e9e59d5
+          name: 'Check AVS Monitoring Sys. Cams. Rec. On'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_rec_on
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_rec_on
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 330aa23dc50c4cecbb0d5b6a96de075f
+          name: 'Check AVS Monitoring Sys. Cams. Rec. Waiting'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cams.cam_rec_waiting
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.cams.cam_rec_waiting
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 0bff38a38e59437caa426cbf341ed8bd
+          name: 'Check AVS Monitoring Sys. Cam List'
+          type: DEPENDENT
+          key: avs.monitoring.sys.cam_dist
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |2
+                    var x = JSON.parse(value).cam_list;
+                    var result = new Object({})
+                    
+                    for (var i in x) {
+                      c = i.substr(0,4) + "_" + x[i]["name"].substr(2,4) + "_" + x[i]["name"].substr(7)
+                      result[c] = {
+                        code: c,
+                        id: i,
+                        name: x[i].name,
+                        comment: x[i].comment,
+                        remoteUrl: x[i].remoteUrl,
+                        playUrl: x[i].playUrl,
+                        pull: x[i].pull,
+                        push: x[i].push,
+                        rec: x[i].rec,
+                      }
+                    }
+                    
+                    return JSON.stringify(result)
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: 1fa549a49da747a4a8643ac2e6a02bdf
+          name: 'Check AVS Monitoring Sys. Free Space'
+          type: DEPENDENT
+          key: avs.monitoring.sys.freeSpace
+          delay: '0'
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.freeSpace
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+        -
+          uuid: f2ee6ba932254730b0b1755b799bde90
+          name: 'Check AVS Monitoring Sys. Name'
+          type: DEPENDENT
+          key: avs.monitoring.sys.name
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - $.name
+          master_item:
+            key: avs.monitoring.sys
+          tags:
+            -
+              tag: software
+              value: avs
+      discovery_rules:
+        -
+          uuid: f0f25db4c9f14a8e90f36dce68d53d21
+          name: 'AVS. Discovery IP-cam Config'
+          type: DEPENDENT
+          key: avs.discovery.cam
+          delay: '0'
+          item_prototypes:
+            -
+              uuid: 82e13960c3c24997b75167605479186b
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Pull Status (Stream Local View)'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},pull]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].pull'
+              master_item:
+                key: avs.monitoring.sys.cam_dist
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: f3a053e6afd34f7eb438124a795980ab
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Push Status (Stream Translation)'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},push]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].push'
+              master_item:
+                key: avs.monitoring.sys.cam_dist
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+            -
+              uuid: e09d9206428a4a07bcc5276bebb43523
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Rec Status (Stream Recording)'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},rec]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVSCAMCODE}''].rec'
+              master_item:
+                key: avs.monitoring.sys.cam_dist
+              tags:
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+          master_item:
+            key: avs.monitoring.sys.cam_dist
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value);
+                  var result = []
+                    
+                  for (var i in x) {
+                    result.push({
+                      "{#AVSCAMCODE}": x[i].code
+                    })
+                  }
+                    
+                  return JSON.stringify(result)
+      tags:
+        -
+          tag: gia
+        -
+          tag: software
+          value: avs
+    -
+      uuid: cac8a50998914544914d7e9d735f8fcd
+      template: 'GIA Template. Scheduler Service'
+      name: 'GIA Template. Scheduler Service'
+      groups:
+        -
+          name: 'GIA. Service'
+      items:
+        -
+          uuid: b8c1e2af6552496b8db2bd4aa4667079
+          name: 'GIA. EGE. Get Current Scheduler'
+          type: HTTP_AGENT
+          key: gia.ege.get.current_scheduler
+          delay: 1h
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: REGEX
+              parameters:
+                - '(\<\/td\>\<tr\>.*\<\/table>)'
+                - \1
+            -
+              type: STR_REPLACE
+              parameters:
+                - '</td><tr>'
+                - '<table><tr>'
+            -
+              type: XML_TO_JSON
+              parameters:
+                - ''
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  const dict = new Object()
+                  for (var i in x["table"]["tr"]) {
+                      var dat = x["table"]["tr"][i]["td"][0]
+                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
+                      var aud = x["table"]["tr"][i]["td"][2]
+                      
+                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
+                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object() }
+                      
+                      dict[dat][ppe][aud] = [
+                          x["table"]["tr"][i]["td"][3], // online
+                          x["table"]["tr"][i]["td"][4], // ovz
+                      ]
+                  }
+                  var result = JSON.stringify(dict)
+                  return result
+          timeout: 10s
+          url: 'http://{HOST.DNS}:83/aud_online.php'
+          tags:
+            -
+              tag: gia
+              value: ege
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 7535f3d576fd4ebb9880129ab271b990
+          name: 'GIA. EGE. Get Current Scheduler. Today Examing List'
+          type: DEPENDENT
+          key: gia.ege.get.current_scheduler.today_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date()
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TODAY"
+          master_item:
+            key: gia.ege.get.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: ege
+        -
+          uuid: 32b3fa19d47e4ae6b6ef3b0dc0129183
+          name: 'GIA. EGE. Get Current Scheduler. Tomorrow Examing List'
+          type: DEPENDENT
+          key: gia.ege.get.current_scheduler.tomorrow_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date(new Date().getTime() + 86400000)
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TOMORROW"
+          master_item:
+            key: gia.ege.get.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: ege
+        -
+          uuid: 50e3cd849b7342b89357ee0f9e0b4613
+          name: 'GIA. OGE. Get Current Scheduler'
+          type: HTTP_AGENT
+          key: gia.oge.get.current_scheduler
+          delay: 1h
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: REGEX
+              parameters:
+                - '(\<\/td\>\<tr\>.*\<\/table>)'
+                - \1
+            -
+              type: STR_REPLACE
+              parameters:
+                - '</td><tr>'
+                - '<table><tr>'
+            -
+              type: XML_TO_JSON
+              parameters:
+                - ''
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  const dict = new Object()
+                  
+                  const involved = new Object({
+                      "102": "", "107": "", "124": "", "125": "", "126": "", "130": "", "188": "", "189": "", "190": "", "193": "", "194": "", "195": "", "197": "", "198": "", "199": "", "200": "", "201": "", "202": "", "203": "", "204": "", "205": "", "206": "", "208": "", "209": "", "210": "", "212": "", "213": "", "214": "", "215": "",    
+                  })
+                  
+                  for (var i in x["table"]["tr"]) {
+                      if (!involved.hasOwnProperty(x["table"]["tr"][i]["td"][1])) { continue }
+                  
+                      var dat = x["table"]["tr"][i]["td"][0]
+                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
+                      var aud = x["table"]["tr"][i]["td"][2]
+                      
+                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
+                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object() }
+                      
+                      dict[dat][ppe][aud] = [
+                          x["table"]["tr"][i]["td"][3], // online
+                          x["table"]["tr"][i]["td"][4], // ovz
+                      ]
+                  }
+                  var result = JSON.stringify(dict)
+                  return result
+          timeout: 15s
+          url: 'http://{HOST.DNS}:83/aud9_online.php'
+          tags:
+            -
+              tag: gia
+              value: oge
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 227b5293f6c647fe99618a92edf1ed1d
+          name: 'GIA. OGE. Get Current Scheduler. Today Examing List'
+          type: DEPENDENT
+          key: gia.oge.get.current_scheduler.today_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date()
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TODAY"
+          master_item:
+            key: gia.oge.get.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: oge
+        -
+          uuid: 0a5ebc3fccf449d0be6957af6df9bbb8
+          name: 'GIA. OGE. Get Current Scheduler. Tomorrow Examing List'
+          type: DEPENDENT
+          key: gia.oge.get.current_scheduler.tomorrow_exam_list
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var x = JSON.parse(value)
+                  var d = new Date(new Date().getTime() + 86400000)
+                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
+                  if (x.hasOwnProperty(s)) {
+                    return JSON.stringify(x[s])
+                  }
+                  return "NO EXAM TOMORROW"
+          master_item:
+            key: gia.oge.get.current_scheduler
+          tags:
+            -
+              tag: gia
+              value: oge
+      tags:
+        -
+          tag: gia
+          value: service
