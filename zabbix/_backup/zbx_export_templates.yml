@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-01T13:37:23Z'
+  date: '2022-06-01T15:53:16Z'
   groups:
     -
       uuid: cc825539265b4ae3b1a53d72b65a1483
@@ -372,10 +372,70 @@ zabbix_export:
                   var v = JSON.parse(value)
                   var d = new Date()
                   var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  var result = {"value": ""}
                   if (v.hasOwnProperty(s)) {
-                    return JSON.stringify(v[s])
+                    result["value"] = JSON.stringify(v[s])
                   }
-                  return "NO EXAM TODAY"
+                  return JSON.stringify(result)
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: GET HOST MACRO
+                  var result = JSON.parse(value);
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.get",
+                      "params":{
+                          "output":["hostmacroid", "macro"],
+                          "hostids":"{$HOST_ID}",
+                          "filter": {
+                              "macro": [
+                                  "{\$GIA_INVOLVED_CAM_LIST_TODAY}",
+                              ]
+                          }
+                      },
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                  if (200 != request.getStatus()) {
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result["hostmacroid"] = JSON.parse(response)["result"][0]["hostmacroid"]
+                  }
+                  
+                  return JSON.stringify(result);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: UPDATE HOST MACRO
+                  result = JSON.parse(value);
+                  if(result.hasOwnProperty("err")) {
+                   return JSON.stringify(result);
+                  }
+                  
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.update",
+                      "params": JSON.parse(value),
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                  if (200 != request.getStatus()) {
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result = result["value"]
+                  }
+                  
+                  return result
           master_item:
             key: gia.get.involved.exam_days
           tags:
@@ -395,13 +455,74 @@ zabbix_export:
               type: JAVASCRIPT
               parameters:
                 - |
+                  // Get involved cam list tomorrow
                   var v = JSON.parse(value)
                   var d = new Date(new Date().getTime() + 86400000)
                   var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  var result = {"value": ""}
                   if (v.hasOwnProperty(s)) {
-                    return JSON.stringify(v[s])
+                    result["value"] = JSON.stringify(v[s])
                   }
-                  return "NO EXAM TOMORROW"
+                  return JSON.stringify(result)
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: GET HOST MACRO
+                  var result = JSON.parse(value);
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.get",
+                      "params":{
+                          "output":["hostmacroid", "macro"],
+                          "hostids":"{$HOST_ID}",
+                          "filter": {
+                              "macro": [
+                                  "{\$GIA_INVOLVED_CAM_LIST_TOMORROW}",
+                              ]
+                          }
+                      },
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                  if (200 != request.getStatus()) {
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result["hostmacroid"] = JSON.parse(response)["result"][0]["hostmacroid"]
+                  }
+                  
+                  return JSON.stringify(result);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: UPDATE HOST MACRO
+                  result = JSON.parse(value);
+                  if(result.hasOwnProperty("err")) {
+                   return JSON.stringify(result);
+                  }
+                  
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.update",
+                      "params": JSON.parse(value),
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                  if (200 != request.getStatus()) {
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result = result["value"]
+                  }
+                  
+                  return result
           master_item:
             key: gia.get.involved.exam_days
           tags:
@@ -442,6 +563,7 @@ zabbix_export:
               parameters:
                 - |
                   // ZABBIX API: GET HOST MACRO
+                  var result = JSON.parse(value);
                   var request = new HttpRequest();
                   request.addHeader("Content-Type: application/json-rpc");
                   var data = {
@@ -459,10 +581,12 @@ zabbix_export:
                       "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
                   }
                   var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
-                  var hostmacroid = JSON.parse(response)["result"][0]["hostmacroid"]
                   
-                  result = JSON.parse(value);
-                  result["hostmacroid"] =  hostmacroid;
+                  if (200 != request.getStatus()) {
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result["hostmacroid"] = JSON.parse(response)["result"][0]["hostmacroid"]
+                  }
                   
                   return JSON.stringify(result);
             -
@@ -470,6 +594,11 @@ zabbix_export:
               parameters:
                 - |
                   // ZABBIX API: UPDATE HOST MACRO
+                  result = JSON.parse(value);
+                  if(result.hasOwnProperty("err")) {
+                   return JSON.stringify(result);
+                  }
+                  
                   var request = new HttpRequest();
                   request.addHeader("Content-Type: application/json-rpc");
                   var data = {
@@ -478,12 +607,16 @@ zabbix_export:
                       "params": JSON.parse(value),
                       "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
                   }
+                  
                   var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
                   if (200 != request.getStatus()) {
-                   return JSON.stringify(response);
+                    result["err"] = JSON.stringify(response);
+                  } else {
+                    result = result["value"]
                   }
                   
-                  return JSON.parse(value)["value"];
+                  return result
           master_item:
             key: gia.get.scheduler
           tags:
@@ -924,23 +1057,6 @@ zabbix_export:
                   }
                     
                   return JSON.stringify(result)
-      httptests:
-        -
-          uuid: c020b9f298314e559e9492e73324375d
-          name: 'Zabbix API. Updated Macro "GIA_PPE_INVOLVED_CAM"'
-          steps:
-            -
-              name: 'Zabbix API. Macro ID serach'
-              url: 'http://11.103.8.101:62929/api_jsonrpc.php'
-              posts: "{\r\n    \"jsonrpc\":\"2.0\",\r\n    \"method\":\"usermacro.get\",\r\n    \"params\":{\r\n        \"output\":\"extend\",\r\n        \"hostids\":\"{$HOST_ID}\"\r\n    },\r\n    \"auth\":\"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd\",\r\n    \"id\":1\r\n}"
-              headers:
-                -
-                  name: Content-Type
-                  value: application/json-rpc
-              follow_redirects: 'NO'
-          tags:
-            -
-              tag: test
       tags:
         -
           tag: gia
