@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-01T15:53:16Z'
+  date: '2022-06-01T21:38:49Z'
   groups:
     -
       uuid: cc825539265b4ae3b1a53d72b65a1483
@@ -24,7 +24,6 @@ zabbix_export:
           name: 'Check AVS Monitoring RTSP'
           type: HTTP_AGENT
           key: avs.monitoring.rtsp
-          history: '0'
           trends: '0'
           value_type: TEXT
           authtype: BASIC
@@ -35,6 +34,26 @@ zabbix_export:
             -
               tag: software
               value: avs
+          triggers:
+            -
+              uuid: 0f3a4770f8514f3cb27fadebb7c98994
+              expression: 'change(/GIA Template. AVS/avs.monitoring.rtsp)=0'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'change(/GIA Template. AVS/avs.monitoring.rtsp)=1'
+              name: 'Static Response: http://localhost/monitoring/rtsp'
+              priority: DISASTER
+              dependencies:
+                -
+                  name: 'Unresponsible: http://localhost/monitoring/rtsp'
+                  expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,2m)=1'
+                  recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,1m)=0'
+            -
+              uuid: f21b0596623747aabec892dfaadae1db
+              expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,2m)=1'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,1m)=0'
+              name: 'Unresponsible: http://localhost/monitoring/rtsp'
+              priority: DISASTER
         -
           uuid: 0a96dd287eae4838bee74f0cd11ad07b
           name: 'Check AVS Monitoring RTSP. Num Results'
@@ -100,17 +119,24 @@ zabbix_export:
           name: 'Check AVS Monitoring Sys'
           type: HTTP_AGENT
           key: avs.monitoring.sys
-          history: '0'
           trends: '0'
           value_type: TEXT
           authtype: BASIC
           username: monitoring
           password: Vjybnjhbyu
-          url: 'http://localhost/monitoring/sys'
+          url: 'http://{HOST.CONN}/monitoring/sys'
           tags:
             -
               tag: software
               value: avs
+          triggers:
+            -
+              uuid: 1dbf0d5051f54878abd13d6aa3211d9e
+              expression: 'nodata(/GIA Template. AVS/avs.monitoring.sys,2m)=1'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.sys,1m)=0'
+              name: 'Unresponsible: http://localhost/monitoring/sys'
+              priority: DISASTER
         -
           uuid: 7e1709426358420394ad651415eab5c7
           name: 'Check AVS Monitoring Sys. AVS Version'
@@ -371,7 +397,8 @@ zabbix_export:
                 - |
                   var v = JSON.parse(value)
                   var d = new Date()
-                  var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  //var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  var s = "2022-06-01"
                   var result = {"value": ""}
                   if (v.hasOwnProperty(s)) {
                     result["value"] = JSON.stringify(v[s])
@@ -645,6 +672,64 @@ zabbix_export:
           delay: '0'
           lifetime: '0'
           item_prototypes:
+            -
+              uuid: ab68f0b415734fe8aa7cc337e009513b
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Involved Today to Exam'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},involved.exam.today]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // Check if IP-cam is Involved
+                      if ("" == value) return "NO"
+                      //var cam_list = JSON.parse(value)
+                      //var cam = '{#AVSCAMCODE}'
+                      var aud = '{#AVSCAMCODE}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})")[2]
+                      
+                      return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
+              master_item:
+                key: gia.get.involved_cams.today
+              tags:
+                -
+                  tag: avs
+                  value: cam
+                -
+                  tag: gia
+                  value: exam
+            -
+              uuid: b047b8baafe74df2ba8577a791f70c77
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". Involved Tomorrow to Exam'
+              type: DEPENDENT
+              key: 'avs.cam.[{#AVSCAMCODE},involved.exam.tomorrow]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // Check if IP-cam is Involved
+                      if ("" == value) return "NO"
+                      //var cam_list = JSON.parse(value)
+                      //var cam = '{#AVSCAMCODE}'
+                      var aud = '{#AVSCAMCODE}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})")[2]
+                      
+                      return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
+              master_item:
+                key: gia.get.involved_cams.tomorrow
+              tags:
+                -
+                  tag: avs
+                  value: cam
+                -
+                  tag: gia
+                  value: exam
             -
               uuid: 82e13960c3c24997b75167605479186b
               name: 'AVS IP-Cam "{#AVSCAMCODE}". Pull Status (Stream Local View)'
@@ -1040,6 +1125,25 @@ zabbix_export:
                   recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)<>"VUNK"'
                   name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
                   priority: DISASTER
+          trigger_prototypes:
+            -
+              uuid: 6c9595c761374b56990fe0ee6c0f76d3
+              expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="NO" and last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)="SWITCHEDOFF"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="YES" or last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)<>"SWITCHEDOFF"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+              priority: WARNING
+            -
+              uuid: eb1cb494e3d54a11b6b97209aaad97fb
+              expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="YES" and last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)="SWITCHEDOFF"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="NO" or last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)<>"SWITCHEDOFF"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+              priority: DISASTER
+              tags:
+                -
+                  tag: exam
+                  value: today
           master_item:
             key: avs.monitoring.sys.cam_dist
           preprocessing:
