@@ -4,7 +4,7 @@
 
 ### /monitoring/sys
 
-http://monitoring:Vjybnjhbyu@<HOST_IP>/monitoring/sys
+`http://monitoring:Vjybnjhbyu@<HOST_IP>/monitoring/sys`
 
 Response:
 
@@ -54,8 +54,7 @@ Response:
 
 ### /monitoring/rtsp
 
-http://monitoring:Vjybnjhbyu@<HOST_IP>/monitoring/rtsp
-
+`http://monitoring:Vjybnjhbyu@<HOST_IP>/monitoring/rtsp`
 
 ```json
 {
