@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-05-26T23:54:13Z'
+  date: '2022-06-01T13:38:57Z'
   groups:
     -
       uuid: cc825539265b4ae3b1a53d72b65a1483
@@ -12,9 +12,6 @@ zabbix_export:
       uuid: f520e3292aa3492680c452bdbcf47efd
       name: 'GIA. OGE'
     -
-      uuid: f09807b601144698ba7e7d95217e7117
-      name: 'GIA. PPE Network IP-cam'
-    -
       uuid: dc579cd7a1a34222933f24f52a68bcd8
       name: 'Linux servers'
   hosts:
@@ -25,9 +22,7 @@ zabbix_export:
         name: '0124'
       templates:
         -
-          name: 'GIA Template. AVS Monitoring'
-        -
-          name: 'GIA Template. OGE'
+          name: 'GIA Template. AVS'
         -
           name: 'Linux by Zabbix agent'
       groups:
@@ -43,36 +38,41 @@ zabbix_export:
         -
           ip: 10.103.120.66
           interface_ref: if1
-      tags:
+      items:
         -
-          tag: gia
-      macros:
-        -
-          macro: '{$AVSCAMPROXYONNUM}'
-          value: '0'
-          description: '"Proxy ON" AVS IP-Cams number'
-      inventory_mode: DISABLED
-    -
-      host: '0124_0000_0'
-      name: '0124_0000_0'
-      proxy:
-        name: '0124'
-      templates:
-        -
-          name: 'Hikvision camera by HTTP'
-      groups:
-        -
-          name: 'GIA. PPE Network IP-cam'
-      interfaces:
-        -
-          ip: 192.168.254.10
-          port: '80'
+          name: TEST_API
+          type: HTTP_AGENT
+          key: test4
+          trends: '0'
+          value_type: TEXT
           interface_ref: if1
+          url: 'http://11.103.8.101:62929/api_jsonrpc.php'
+          posts: |
+            {
+                "jsonrpc": "2.0",
+                "method": "usermacro.get",
+                "params": {
+                    "output": "extend",
+                    "hostids": "{$HOST_ID}"
+                },
+                "auth": "999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd",
+                "id": 1
+            }
+          post_type: JSON
+          tags:
+            -
+              tag: test
       tags:
         -
           tag: gia
       macros:
         -
-          macro: '{$PASSWORD}'
-          type: SECRET_TEXT
+          macro: '{$GIA_INVOLVED_CAM_LIST_TOTAL}'
+          value: '["0000","0001","0002","0003","0004","0005","0006","0007","0008","0009","0010","7777"]'
+        -
+          macro: '{$GIA_PPE_CODE}'
+          value: '0124'
+        -
+          macro: '{$HOST_ID}'
+          value: '10520'
       inventory_mode: DISABLED

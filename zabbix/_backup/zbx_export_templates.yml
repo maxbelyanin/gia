@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-05-26T23:53:40Z'
+  date: '2022-06-01T13:37:23Z'
   groups:
     -
       uuid: cc825539265b4ae3b1a53d72b65a1483
@@ -8,23 +8,11 @@ zabbix_export:
     -
       uuid: aeeab3d998ad4d0fbdc8bebad30ff971
       name: 'GIA. AVS Hosts'
-    -
-      uuid: e31865ba28834a5da4832a0a8cbcfe04
-      name: 'GIA. EGE'
-    -
-      uuid: f520e3292aa3492680c452bdbcf47efd
-      name: 'GIA. OGE'
-    -
-      uuid: 40cf779a2dfe48ada568cc8363fb2279
-      name: 'GIA. Service'
   templates:
     -
       uuid: 18d83fc228904100ad154b17f46d83db
-      template: 'GIA Template. AVS Monitoring'
-      name: 'GIA Template. AVS Monitoring'
-      templates:
-        -
-          name: 'GIA Template. Scheduler Service'
+      template: 'GIA Template. AVS'
+      name: 'GIA Template. AVS'
       groups:
         -
           name: GIA
@@ -336,6 +324,185 @@ zabbix_export:
             -
               tag: software
               value: avs
+        -
+          uuid: ddf08b17e56741388417c2baf7fe5c21
+          name: 'Get Involved Exam Days'
+          type: DEPENDENT
+          key: gia.get.involved.exam_days
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  v = JSON.parse(value)
+                  const result = {}
+                  for (var i in v) {
+                    var dat = v[i]["Date"]
+                    var aud = v[i]["AudienceCode"]
+                    if (!result.hasOwnProperty(dat)) { result[dat] = {"0000": [1,0], "7777": [1, 0]} }
+                    result[dat][aud] = [Number(v[i]["Online"]), Number(v[i]["OVZ"])]
+                  }
+                  return JSON.stringify(result)
+          master_item:
+            key: gia.get.scheduler
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 344b968c518c4cb9b3b3420205bfce74
+          name: 'Get Involved Cams Today'
+          type: DEPENDENT
+          key: gia.get.involved_cams.today
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var v = JSON.parse(value)
+                  var d = new Date()
+                  var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  if (v.hasOwnProperty(s)) {
+                    return JSON.stringify(v[s])
+                  }
+                  return "NO EXAM TODAY"
+          master_item:
+            key: gia.get.involved.exam_days
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: 9a637738609049e89eb6781b5d3735e4
+          name: 'Get Involved Cams Tomorrow'
+          type: DEPENDENT
+          key: gia.get.involved_cams.tomorrow
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  var v = JSON.parse(value)
+                  var d = new Date(new Date().getTime() + 86400000)
+                  var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
+                  if (v.hasOwnProperty(s)) {
+                    return JSON.stringify(v[s])
+                  }
+                  return "NO EXAM TOMORROW"
+          master_item:
+            key: gia.get.involved.exam_days
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: e1b433b7af0c4dca9390ac713ccef6a3
+          name: 'Get Involved Cams Total'
+          type: DEPENDENT
+          key: gia.get.involved_cams.total
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // Create Total involved aud list
+                  v = JSON.parse(value)
+                  var s = ["0000", "7777"]
+                  for (var i in v) {
+                    if(s.indexOf(v[i]["AudienceCode"]) >= 0) continue;  
+                    s.push(v[i]["AudienceCode"])
+                  }
+                  
+                  var result = {
+                    "value": JSON.stringify(s.sort())
+                  }
+                  return JSON.stringify(result)
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: GET HOST MACRO
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.get",
+                      "params":{
+                          "output":["hostmacroid", "macro"],
+                          "hostids":"{$HOST_ID}",
+                          "filter": {
+                              "macro": [
+                                  "{\$GIA_INVOLVED_CAM_LIST_TOTAL}",
+                              ]
+                          }
+                      },
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  var hostmacroid = JSON.parse(response)["result"][0]["hostmacroid"]
+                  
+                  result = JSON.parse(value);
+                  result["hostmacroid"] =  hostmacroid;
+                  
+                  return JSON.stringify(result);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // ZABBIX API: UPDATE HOST MACRO
+                  var request = new HttpRequest();
+                  request.addHeader("Content-Type: application/json-rpc");
+                  var data = {
+                      "jsonrpc":"2.0",
+                      "method":"usermacro.update",
+                      "params": JSON.parse(value),
+                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                  }
+                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  if (200 != request.getStatus()) {
+                   return JSON.stringify(response);
+                  }
+                  
+                  return JSON.parse(value)["value"];
+          master_item:
+            key: gia.get.scheduler
+          tags:
+            -
+              tag: gia
+              value: service
+        -
+          uuid: ccb0f634854f400f93334cead18bdd12
+          name: 'Get Scheduler'
+          type: HTTP_AGENT
+          key: gia.get.scheduler
+          trends: '0'
+          value_type: TEXT
+          timeout: 5s
+          url: 'http://11.103.8.101:8080/api/calendar/all'
+          tags:
+            -
+              tag: gia
+              value: service
       discovery_rules:
         -
           uuid: f0f25db4c9f14a8e90f36dce68d53d21
@@ -345,66 +512,6 @@ zabbix_export:
           delay: '0'
           lifetime: '0'
           item_prototypes:
-            -
-              uuid: 022d975e9bd74a7e998ef21629010c06
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Exam Invoved. Today'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},exam.invoved.today]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JAVASCRIPT
-                  parameters:
-                    - |
-                      if (value == "NO EXAM TODAY") return "NO"
-                      var x = JSON.parse(value);
-                      var z = '{#AVSCAMCODE}'
-                      var ppe = z.substr(0,4)
-                      var aud = z.substr(5,4)
-                      return (x.hasOwnProperty(ppe) && x[ppe].hasOwnProperty(aud)) ? "YES" : "NO"
-              master_item:
-                key: gia.current_scheduler.today_exam_list
-              tags:
-                -
-                  tag: exam
-                  value: today
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: bc3c68e716074a41b1ef67fbcb049959
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Exam Invoved. Tomorrow'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},exam.invoved.tomorrow]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JAVASCRIPT
-                  parameters:
-                    - |
-                      if (value == "NO EXAM TOMORROW") return "NO"
-                      var x = JSON.parse(value);
-                      var z = '{#AVSCAMCODE}'
-                      var ppe = z.substr(0,4)
-                      var aud = z.substr(5,4)
-                      return (x.hasOwnProperty(ppe) && x[ppe].hasOwnProperty(aud)) ? "YES" : "NO"
-              master_item:
-                key: gia.current_scheduler.tomorrow_exam_list
-              tags:
-                -
-                  tag: exam
-                  value: tomorrow
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
             -
               uuid: 82e13960c3c24997b75167605479186b
               name: 'AVS IP-Cam "{#AVSCAMCODE}". Pull Status (Stream Local View)'
@@ -629,9 +736,9 @@ zabbix_export:
               trigger_prototypes:
                 -
                   uuid: 6fe046d4b43147c098df1213818a9dee
-                  expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)="AUNK"'
+                  expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)="AUNK"'
                   recovery_mode: RECOVERY_EXPRESSION
-                  recovery_expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)<>"AUNK"'
+                  recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)<>"AUNK"'
                   name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP AUNK'
                   priority: DISASTER
             -
@@ -795,9 +902,9 @@ zabbix_export:
               trigger_prototypes:
                 -
                   uuid: a554b3f32ef14ce9823c51e9a61cc853
-                  expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)="VUNK"'
+                  expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)="VUNK"'
                   recovery_mode: RECOVERY_EXPRESSION
-                  recovery_expression: 'last(/GIA Template. AVS Monitoring/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)<>"VUNK"'
+                  recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)<>"VUNK"'
                   name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
                   priority: DISASTER
           master_item:
@@ -817,421 +924,26 @@ zabbix_export:
                   }
                     
                   return JSON.stringify(result)
+      httptests:
+        -
+          uuid: c020b9f298314e559e9492e73324375d
+          name: 'Zabbix API. Updated Macro "GIA_PPE_INVOLVED_CAM"'
+          steps:
+            -
+              name: 'Zabbix API. Macro ID serach'
+              url: 'http://11.103.8.101:62929/api_jsonrpc.php'
+              posts: "{\r\n    \"jsonrpc\":\"2.0\",\r\n    \"method\":\"usermacro.get\",\r\n    \"params\":{\r\n        \"output\":\"extend\",\r\n        \"hostids\":\"{$HOST_ID}\"\r\n    },\r\n    \"auth\":\"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd\",\r\n    \"id\":1\r\n}"
+              headers:
+                -
+                  name: Content-Type
+                  value: application/json-rpc
+              follow_redirects: 'NO'
+          tags:
+            -
+              tag: test
       tags:
         -
           tag: gia
         -
           tag: software
           value: avs
-    -
-      uuid: 016534f8f39f48c28917797e73a1502f
-      template: 'GIA Template. EGE'
-      name: 'GIA Template. EGE'
-      groups:
-        -
-          name: GIA
-        -
-          name: 'GIA. EGE'
-      macros:
-        -
-          macro: '{$GIASCHEDULERURL}'
-          value: 'http://result.rcoi71.ru:83/aud_online.php'
-          description: 'FCT dump from RCOI'
-    -
-      uuid: 25ddb396a0ca43f78b333254d586a7d8
-      template: 'GIA Template. OGE'
-      name: 'GIA Template. OGE'
-      groups:
-        -
-          name: GIA
-        -
-          name: 'GIA. OGE'
-      macros:
-        -
-          macro: '{$GIASCHEDULERURL}'
-          value: 'http://result.rcoi71.ru:83/aud9_online.php'
-          description: 'FCT dump from RCOI'
-    -
-      uuid: cac8a50998914544914d7e9d735f8fcd
-      template: 'GIA Template. Scheduler Service'
-      name: 'GIA Template. Scheduler Service'
-      groups:
-        -
-          name: GIA
-        -
-          name: 'GIA. Service'
-      items:
-        -
-          uuid: b8c1e2af6552496b8db2bd4aa4667079
-          name: 'GIA. Current Scheduler'
-          type: SCRIPT
-          key: gia.current_scheduler
-          trends: '0'
-          value_type: TEXT
-          params: 'return 0'
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var s = '<!DOCTYPE HTML> \
-                  <html lang="ru"> \
-                  	<head> \
-                  		<title>Аудитории он-лайн</title>	\
-                  		<meta charset="UTF-8"> \
-                  		<style> \
-                  			.table_dark { \
-                  			font-size: 14px; \
-                  			text-align: center; \
-                  			border-collapse: collapse; \
-                  			background: #fff; \
-                  			margin: 10px; \
-                  			} \
-                  			.table_dark td { \
-                  			color: #252F48; \
-                  			border-bottom: 1px solid #37B5A5; \
-                  			border-right:1px solid #37B5A5; \
-                  			padding: 7px 17px; \
-                  			} \
-                  			.table_dark tr:last-child td { \
-                  			border-bottom: none; \
-                  			} \
-                  			.table_dark td:last-child { \
-                  			border-right: none; \
-                  			} \
-                  			.table_dark tr:hover td { \
-                  			text-decoration: underline; \
-                  			} \
-                  		</style> \
-                  	</head> \
-                  	<body> \
-                  		<table class="table_dark"><td><b>Дата</b></td><td><b>КодППЭ</b></td><td><b>КодАудитории</b></td><td><b>On-line</b></td><td><b>ОВЗ</b></td><td><b>КодМО</b></td><td><b>МО</b></td><td><b>КодПредм</b></td><td><b>Предмет</b></td><td><b>Волна</b></td><tr><td>2022.05.27</td><td>124</td><td>0001</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>51</td><td>Русский язык</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0002</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>52</td><td>Математика</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0003</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>55</td><td>Информатика</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0004</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>57</td><td>История</td><td>0</td></tr><tr><td>2022.05.26</td><td>124</td><td>0005</td><td>0</td><td>0</td><td>44</td><td>МО Щекинский район</td><td>62</td><td>Обществознание</td><td>0</td></tr></table>	</body> \
-                          </html>'
-                  
-                  return s
-            -
-              type: REGEX
-              parameters:
-                - '(\<\/td\>\<tr\>.*\<\/table>)'
-                - \1
-            -
-              type: STR_REPLACE
-              parameters:
-                - '</td><tr>'
-                - '<table><tr>'
-            -
-              type: XML_TO_JSON
-              parameters:
-                - ''
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  const dict = new Object()
-                  for (var i in x["table"]["tr"]) {
-                      var dat = x["table"]["tr"][i]["td"][0]
-                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
-                      var aud = x["table"]["tr"][i]["td"][2]
-                      
-                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
-                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object({"0000": ["1","0"], "7777": ["1", "0"]}) }
-                      
-                      dict[dat][ppe][aud] = [
-                          x["table"]["tr"][i]["td"][3], // online
-                          x["table"]["tr"][i]["td"][4], // ovz
-                      ]
-                  }
-                  var result = JSON.stringify(dict)
-                  return result
-          tags:
-            -
-              tag: gia
-              value: service
-        -
-          uuid: 7535f3d576fd4ebb9880129ab271b990
-          name: 'GIA. Current Scheduler. Today Examing List'
-          type: DEPENDENT
-          key: gia.current_scheduler.today_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date()
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TODAY"
-          master_item:
-            key: gia.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: service
-        -
-          uuid: 32b3fa19d47e4ae6b6ef3b0dc0129183
-          name: 'GIA. Current Scheduler. Tomorrow Examing List'
-          type: DEPENDENT
-          key: gia.current_scheduler.tomorrow_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date(new Date().getTime() + 86400000)
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TOMORROW"
-          master_item:
-            key: gia.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: ege
-      tags:
-        -
-          tag: gia
-          value: service
-    -
-      uuid: 940509da38b34196a03e251c15439e66
-      template: 'GIA Template. Scheduler Service__BACKUP'
-      name: 'GIA Template. Scheduler Service__BACKUP'
-      groups:
-        -
-          name: GIA
-        -
-          name: 'GIA. Service'
-      items:
-        -
-          uuid: d0ee97d25c6346b1886935bb358c7c8c
-          name: 'GIA. EGE. Get Current Scheduler'
-          type: HTTP_AGENT
-          key: gia.ege.get.current_scheduler
-          delay: 1h
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: REGEX
-              parameters:
-                - '(\<\/td\>\<tr\>.*\<\/table>)'
-                - \1
-            -
-              type: STR_REPLACE
-              parameters:
-                - '</td><tr>'
-                - '<table><tr>'
-            -
-              type: XML_TO_JSON
-              parameters:
-                - ''
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  const dict = new Object()
-                  for (var i in x["table"]["tr"]) {
-                      var dat = x["table"]["tr"][i]["td"][0]
-                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
-                      var aud = x["table"]["tr"][i]["td"][2]
-                      
-                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
-                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object() }
-                      
-                      dict[dat][ppe][aud] = [
-                          x["table"]["tr"][i]["td"][3], // online
-                          x["table"]["tr"][i]["td"][4], // ovz
-                      ]
-                  }
-                  var result = JSON.stringify(dict)
-                  return result
-          timeout: 10s
-          url: 'http://{HOST.DNS}:83/aud_online.php'
-          tags:
-            -
-              tag: gia
-              value: ege
-            -
-              tag: gia
-              value: service
-        -
-          uuid: d3b0f19aa89d4aaba0d67e22bc584ed4
-          name: 'GIA. EGE. Get Current Scheduler. Today Examing List'
-          type: DEPENDENT
-          key: gia.ege.get.current_scheduler.today_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date()
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TODAY"
-          master_item:
-            key: gia.ege.get.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: ege
-        -
-          uuid: 1bccf481bc534f0faf1d5b5b421021a6
-          name: 'GIA. EGE. Get Current Scheduler. Tomorrow Examing List'
-          type: DEPENDENT
-          key: gia.ege.get.current_scheduler.tomorrow_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date(new Date().getTime() + 86400000)
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TOMORROW"
-          master_item:
-            key: gia.ege.get.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: ege
-        -
-          uuid: cadbe1e4dbe544d18257a2b46fbcbc64
-          name: 'GIA. OGE. Get Current Scheduler'
-          type: HTTP_AGENT
-          key: gia.oge.get.current_scheduler
-          delay: 1h
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: REGEX
-              parameters:
-                - '(\<\/td\>\<tr\>.*\<\/table>)'
-                - \1
-            -
-              type: STR_REPLACE
-              parameters:
-                - '</td><tr>'
-                - '<table><tr>'
-            -
-              type: XML_TO_JSON
-              parameters:
-                - ''
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  const dict = new Object()
-                  
-                  const involved = new Object({
-                      "102": "", "107": "", "124": "", "125": "", "126": "", "130": "", "188": "", "189": "", "190": "", "193": "", "194": "", "195": "", "197": "", "198": "", "199": "", "200": "", "201": "", "202": "", "203": "", "204": "", "205": "", "206": "", "208": "", "209": "", "210": "", "212": "", "213": "", "214": "", "215": "",    
-                  })
-                  
-                  for (var i in x["table"]["tr"]) {
-                      if (!involved.hasOwnProperty(x["table"]["tr"][i]["td"][1])) { continue }
-                  
-                      var dat = x["table"]["tr"][i]["td"][0]
-                      var ppe = ("0000" + x["table"]["tr"][i]["td"][1]).substr(-4)
-                      var aud = x["table"]["tr"][i]["td"][2]
-                      
-                      if (!dict.hasOwnProperty(dat)) { dict[dat] = new Object() }
-                      if (!dict[dat].hasOwnProperty(ppe)) { dict[dat][ppe] = new Object() }
-                      
-                      dict[dat][ppe][aud] = [
-                          x["table"]["tr"][i]["td"][3], // online
-                          x["table"]["tr"][i]["td"][4], // ovz
-                      ]
-                  }
-                  var result = JSON.stringify(dict)
-                  return result
-          timeout: 15s
-          url: 'http://{HOST.DNS}:83/aud9_online.php'
-          tags:
-            -
-              tag: gia
-              value: oge
-            -
-              tag: gia
-              value: service
-        -
-          uuid: c8decd4085e14b1abb57dbc394431b49
-          name: 'GIA. OGE. Get Current Scheduler. Today Examing List'
-          type: DEPENDENT
-          key: gia.oge.get.current_scheduler.today_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date()
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TODAY"
-          master_item:
-            key: gia.oge.get.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: oge
-        -
-          uuid: 72aa5c2570c34ace990fc9685659de22
-          name: 'GIA. OGE. Get Current Scheduler. Tomorrow Examing List'
-          type: DEPENDENT
-          key: gia.oge.get.current_scheduler.tomorrow_exam_list
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  var x = JSON.parse(value)
-                  var d = new Date(new Date().getTime() + 86400000)
-                  var s = d.getFullYear() + "." + ("00" + (d.getMonth() + 1)).substr(-2) + "." + d.getDate()
-                  if (x.hasOwnProperty(s)) {
-                    return JSON.stringify(x[s])
-                  }
-                  return "NO EXAM TOMORROW"
-          master_item:
-            key: gia.oge.get.current_scheduler
-          tags:
-            -
-              tag: gia
-              value: oge
-      tags:
-        -
-          tag: gia
-          value: service
