@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-01T21:38:49Z'
+  date: '2022-06-01T22:28:24Z'
   groups:
     -
       uuid: cc825539265b4ae3b1a53d72b65a1483
@@ -395,13 +395,24 @@ zabbix_export:
               type: JAVASCRIPT
               parameters:
                 - |
+                  // Get involved cam list today
                   var v = JSON.parse(value)
                   var d = new Date()
                   //var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
                   var s = "2022-06-01"
-                  var result = {"value": ""}
+                  var result = {
+                    "data": {
+                      "{\$GIA_INVOLVED_CAM_LIST_TODAY}": {
+                        "value": ""
+                      },
+                      "{\$GIA_INVOLVED_PPE_TODAY}": {
+                        "value": "NO"
+                      }
+                    }
+                  }
                   if (v.hasOwnProperty(s)) {
-                    result["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_CAM_LIST_TODAY}"]["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_PPE_TODAY}"]["value"] = "YES"
                   }
                   return JSON.stringify(result)
             -
@@ -421,6 +432,7 @@ zabbix_export:
                           "filter": {
                               "macro": [
                                   "{\$GIA_INVOLVED_CAM_LIST_TODAY}",
+                                  "{\$GIA_INVOLVED_PPE_TODAY}"
                               ]
                           }
                       },
@@ -431,7 +443,10 @@ zabbix_export:
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
                   } else {
-                    result["hostmacroid"] = JSON.parse(response)["result"][0]["hostmacroid"]
+                    var r = JSON.parse(response)["result"]
+                    for (var i in r) {
+                      result["data"][r[i]["macro"]]["hostmacroid"] = r[i]["hostmacroid"]
+                    }
                   }
                   
                   return JSON.stringify(result);
@@ -445,23 +460,24 @@ zabbix_export:
                    return JSON.stringify(result);
                   }
                   
-                  var request = new HttpRequest();
-                  request.addHeader("Content-Type: application/json-rpc");
-                  var data = {
+                  for (var i in result["data"]) {
+                    var request = new HttpRequest();
+                    request.addHeader("Content-Type: application/json-rpc");
+                    var data = {
                       "jsonrpc":"2.0",
                       "method":"usermacro.update",
-                      "params": JSON.parse(value),
+                      "params": result["data"][i],
                       "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                    }
+                  
+                    var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                    if (200 != request.getStatus()) {
+                      result["err"] = JSON.stringify(response);
+                      return result;
+                    }
                   }
-                  
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
-                  
-                  if (200 != request.getStatus()) {
-                    result["err"] = JSON.stringify(response);
-                  } else {
-                    result = result["value"]
-                  }
-                  
+                  result = result["data"]["{\$GIA_INVOLVED_CAM_LIST_TODAY}"]["value"]
                   return result
           master_item:
             key: gia.get.involved.exam_days
@@ -486,9 +502,19 @@ zabbix_export:
                   var v = JSON.parse(value)
                   var d = new Date(new Date().getTime() + 86400000)
                   var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
-                  var result = {"value": ""}
+                  var result = {
+                    "data": {
+                      "{\$GIA_INVOLVED_CAM_LIST_TOMORROW}": {
+                        "value": ""
+                      },
+                      "{\$GIA_INVOLVED_PPE_TOMORROW}": {
+                        "value": "NO"
+                      }
+                    }
+                  }
                   if (v.hasOwnProperty(s)) {
-                    result["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_CAM_LIST_TOMORROW}"]["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_PPE_TOMORROW}"]["value"] = "YES"
                   }
                   return JSON.stringify(result)
             -
@@ -508,6 +534,7 @@ zabbix_export:
                           "filter": {
                               "macro": [
                                   "{\$GIA_INVOLVED_CAM_LIST_TOMORROW}",
+                                  "{\$GIA_INVOLVED_PPE_TOMORROW}"
                               ]
                           }
                       },
@@ -518,7 +545,10 @@ zabbix_export:
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
                   } else {
-                    result["hostmacroid"] = JSON.parse(response)["result"][0]["hostmacroid"]
+                    var r = JSON.parse(response)["result"]
+                    for (var i in r) {
+                      result["data"][r[i]["macro"]]["hostmacroid"] = r[i]["hostmacroid"]
+                    }
                   }
                   
                   return JSON.stringify(result);
@@ -532,23 +562,24 @@ zabbix_export:
                    return JSON.stringify(result);
                   }
                   
-                  var request = new HttpRequest();
-                  request.addHeader("Content-Type: application/json-rpc");
-                  var data = {
+                  for (var i in result["data"]) {
+                    var request = new HttpRequest();
+                    request.addHeader("Content-Type: application/json-rpc");
+                    var data = {
                       "jsonrpc":"2.0",
                       "method":"usermacro.update",
-                      "params": JSON.parse(value),
+                      "params": result["data"][i],
                       "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                    }
+                  
+                    var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  
+                    if (200 != request.getStatus()) {
+                      result["err"] = JSON.stringify(response);
+                      return result;
+                    }
                   }
-                  
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
-                  
-                  if (200 != request.getStatus()) {
-                    result["err"] = JSON.stringify(response);
-                  } else {
-                    result = result["value"]
-                  }
-                  
+                  result = result["data"]["{\$GIA_INVOLVED_CAM_LIST_TOMORROW}"]["value"]
                   return result
           master_item:
             key: gia.get.involved.exam_days
