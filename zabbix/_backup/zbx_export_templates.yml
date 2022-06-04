@@ -1,23 +1,18 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-01T22:28:24Z'
+  date: '2022-06-04T12:27:11Z'
   groups:
     -
-      uuid: cc825539265b4ae3b1a53d72b65a1483
-      name: GIA
-    -
-      uuid: aeeab3d998ad4d0fbdc8bebad30ff971
-      name: 'GIA. AVS Hosts'
+      uuid: 45c5f38a92f84f30ade6904d35f2da71
+      name: Templates/GIA
   templates:
     -
       uuid: 18d83fc228904100ad154b17f46d83db
-      template: 'GIA Template. AVS'
-      name: 'GIA Template. AVS'
+      template: AVS
+      name: AVS
       groups:
         -
-          name: GIA
-        -
-          name: 'GIA. AVS Hosts'
+          name: Templates/GIA
       items:
         -
           uuid: b2ebb33207ab4bdcb5cf4e6b2545f6f6
@@ -27,9 +22,9 @@ zabbix_export:
           trends: '0'
           value_type: TEXT
           authtype: BASIC
-          username: monitoring
-          password: Vjybnjhbyu
-          url: 'http://localhost/monitoring/rtsp'
+          username: '{$AVS_SYSTEM_USER_NAME}'
+          password: '{$AVS_SYSTEM_USER_PASS}'
+          url: '{$AVS_URL_MONITORING_RTSP}'
           tags:
             -
               tag: software
@@ -37,40 +32,23 @@ zabbix_export:
           triggers:
             -
               uuid: 0f3a4770f8514f3cb27fadebb7c98994
-              expression: 'change(/GIA Template. AVS/avs.monitoring.rtsp)=0'
+              expression: change(/AVS/avs.monitoring.rtsp)=0
               recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'change(/GIA Template. AVS/avs.monitoring.rtsp)=1'
-              name: 'Static Response: http://localhost/monitoring/rtsp'
+              recovery_expression: change(/AVS/avs.monitoring.rtsp)=1
+              name: 'Static Response: {$AVS_URL_MONITORING_RTSP}'
               priority: DISASTER
               dependencies:
                 -
-                  name: 'Unresponsible: http://localhost/monitoring/rtsp'
-                  expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,2m)=1'
-                  recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,1m)=0'
+                  name: 'Unresponsible: {$AVS_URL_MONITORING_RTSP}'
+                  expression: 'nodata(/AVS/avs.monitoring.rtsp,2m)=1'
+                  recovery_expression: 'nodata(/AVS/avs.monitoring.rtsp,1m)=0'
             -
               uuid: f21b0596623747aabec892dfaadae1db
-              expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,2m)=1'
+              expression: 'nodata(/AVS/avs.monitoring.rtsp,2m)=1'
               recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.rtsp,1m)=0'
-              name: 'Unresponsible: http://localhost/monitoring/rtsp'
+              recovery_expression: 'nodata(/AVS/avs.monitoring.rtsp,1m)=0'
+              name: 'Unresponsible: {$AVS_URL_MONITORING_RTSP}'
               priority: DISASTER
-        -
-          uuid: 0a96dd287eae4838bee74f0cd11ad07b
-          name: 'Check AVS Monitoring RTSP. Num Results'
-          type: DEPENDENT
-          key: avs.monitoring.rtsp.num_results
-          delay: '0'
-          preprocessing:
-            -
-              type: JSONPATH
-              parameters:
-                - $.num_results
-          master_item:
-            key: avs.monitoring.rtsp
-          tags:
-            -
-              tag: software
-              value: avs
         -
           uuid: 47dbf82c51f4421dbeb75ce03349b393
           name: 'Check AVS Monitoring RTSP. Results'
@@ -89,21 +67,22 @@ zabbix_export:
                   var result = new Object({})
                     
                   for (var i in x) {
-                    c = i.substr(0,4) + "_" + x[i]["title"].substr(2,4) + "_" + x[i]["title"].substr(7)
-                    result[c] = {
-                      code:         c,
-                      id:           i,
-                      name:         x[i].title,
-                      comment:      x[i].comment,
-                      creationTime: new Date(x[i].creationTimestamp).toLocaleString(),
-                      upTime:       x[i].upTime,
-                      appname:      x[i].appname,
-                      ip:           x[i].ip,
-                      type:         x[i].type,
-                      online:       x[i].onine,
-                      audio:        x[i].audio,
-                      video:        x[i].video,
-                      pullSettings: x[i].pullSettings
+                    if(x[i]["online"]) {
+                      c = i.substr(0,4) + "_" + x[i]["title"].substr(2,4) + "_" + x[i]["title"].substr(7) + "_" + i.substr(5)
+                      result[c] = {
+                        code:         c,
+                        id:           i,
+                        name:         x[i].title,
+                        comment:      x[i].comment,
+                        creationTime: new Date(x[i].creationTimestamp).toLocaleString(),
+                        upTime:       x[i].upTime,
+                        appname:      x[i].appname,
+                        ip:           x[i].ip,
+                        type:         x[i].type,
+                        audio:        x[i].audio,
+                        video:        x[i].video,
+                        pullSettings: x[i].pullSettings
+                      }
                     }
                   }
                     
@@ -111,6 +90,9 @@ zabbix_export:
           master_item:
             key: avs.monitoring.rtsp
           tags:
+            -
+              tag: avs
+              value: monitoring
             -
               tag: software
               value: avs
@@ -122,9 +104,9 @@ zabbix_export:
           trends: '0'
           value_type: TEXT
           authtype: BASIC
-          username: monitoring
-          password: Vjybnjhbyu
-          url: 'http://{HOST.CONN}/monitoring/sys'
+          username: '{$AVS_SYSTEM_USER_NAME}'
+          password: '{$AVS_SYSTEM_USER_PASS}'
+          url: '{$AVS_URL_MONITORING_SYS}'
           tags:
             -
               tag: software
@@ -132,10 +114,10 @@ zabbix_export:
           triggers:
             -
               uuid: 1dbf0d5051f54878abd13d6aa3211d9e
-              expression: 'nodata(/GIA Template. AVS/avs.monitoring.sys,2m)=1'
+              expression: 'nodata(/AVS/avs.monitoring.sys,2m)=1'
               recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'nodata(/GIA Template. AVS/avs.monitoring.sys,1m)=0'
-              name: 'Unresponsible: http://localhost/monitoring/sys'
+              recovery_expression: 'nodata(/AVS/avs.monitoring.sys,1m)=0'
+              name: 'Unresponsible: {$AVS_URL_MONITORING_SYS}'
               priority: DISASTER
         -
           uuid: 7e1709426358420394ad651415eab5c7
@@ -292,7 +274,7 @@ zabbix_export:
                   var result = new Object({})
                     
                   for (var i in x) {
-                    c = i.substr(0,4) + "_" + x[i]["name"].substr(2,4) + "_" + x[i]["name"].substr(7)
+                    c = i.substr(0,4) + "_" + x[i]["name"].substr(2,4) + "_" + x[i]["name"].substr(7) + "_" + i.substr(5)
                     result[c] = {
                       code:      c,
                       id:        i,
@@ -300,9 +282,9 @@ zabbix_export:
                       comment:   x[i].comment,
                       remoteUrl: x[i].remoteUrl,
                       playUrl:   x[i].playUrl,
-                      pull:     (x[i].pull == "") ? "SWITCHEDOFF" : x[i].pull,
-                      push:     (x[i].push == "") ? "SWITCHEDOFF" : x[i].push,
-                      rec:      (x[i].rec  == "") ? "SWITCHEDOFF" : x[i].rec,
+                      pull:     (x[i].pull == "") ? "{$AVS_STREAM_STATUS_OFF}" : x[i].pull,
+                      push:     (x[i].push == "") ? "{$AVS_STREAM_STATUS_OFF}" : x[i].push,
+                      rec:      (x[i].rec  == "") ? "{$AVS_STREAM_STATUS_OFF}" : x[i].rec,
                     }
                   }
                     
@@ -351,42 +333,10 @@ zabbix_export:
               tag: software
               value: avs
         -
-          uuid: ddf08b17e56741388417c2baf7fe5c21
-          name: 'Get Involved Exam Days'
-          type: DEPENDENT
-          key: gia.get.involved.exam_days
-          delay: '0'
-          trends: '0'
-          value_type: TEXT
-          preprocessing:
-            -
-              type: JSONPATH
-              parameters:
-                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  v = JSON.parse(value)
-                  const result = {}
-                  for (var i in v) {
-                    var dat = v[i]["Date"]
-                    var aud = v[i]["AudienceCode"]
-                    if (!result.hasOwnProperty(dat)) { result[dat] = {"0000": [1,0], "7777": [1, 0]} }
-                    result[dat][aud] = [Number(v[i]["Online"]), Number(v[i]["OVZ"])]
-                  }
-                  return JSON.stringify(result)
-          master_item:
-            key: gia.get.scheduler
-          tags:
-            -
-              tag: gia
-              value: service
-        -
           uuid: 344b968c518c4cb9b3b3420205bfce74
-          name: 'Get Involved Cams Today'
+          name: 'Get Involved Auditoriums Today'
           type: DEPENDENT
-          key: gia.get.involved_cams.today
+          key: gia.get.involved_auds.today
           delay: '0'
           trends: '0'
           value_type: TEXT
@@ -402,17 +352,17 @@ zabbix_export:
                   var s = "2022-06-01"
                   var result = {
                     "data": {
-                      "{\$GIA_INVOLVED_CAM_LIST_TODAY}": {
-                        "value": ""
+                      "{\$GIA_INVOLVED_AUDS_TODAY}": {
+                        "value": "[]"
                       },
-                      "{\$GIA_INVOLVED_PPE_TODAY}": {
+                      "{\$GIA_INVOLVED_EXAM_TODAY}": {
                         "value": "NO"
                       }
                     }
                   }
                   if (v.hasOwnProperty(s)) {
-                    result["data"]["{\$GIA_INVOLVED_CAM_LIST_TODAY}"]["value"] = JSON.stringify(v[s])
-                    result["data"]["{\$GIA_INVOLVED_PPE_TODAY}"]["value"] = "YES"
+                    result["data"]["{\$GIA_INVOLVED_AUDS_TODAY}"]["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_EXAM_TODAY}"]["value"] = "YES"
                   }
                   return JSON.stringify(result)
             -
@@ -431,14 +381,14 @@ zabbix_export:
                           "hostids":"{$HOST_ID}",
                           "filter": {
                               "macro": [
-                                  "{\$GIA_INVOLVED_CAM_LIST_TODAY}",
-                                  "{\$GIA_INVOLVED_PPE_TODAY}"
+                                  "{\$GIA_INVOLVED_AUDS_TODAY}",
+                                  "{\$GIA_INVOLVED_EXAM_TODAY}"
                               ]
                           }
                       },
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                   }
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
@@ -467,29 +417,29 @@ zabbix_export:
                       "jsonrpc":"2.0",
                       "method":"usermacro.update",
                       "params": result["data"][i],
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                     }
                   
-                    var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                    var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                     if (200 != request.getStatus()) {
                       result["err"] = JSON.stringify(response);
                       return result;
                     }
                   }
-                  result = result["data"]["{\$GIA_INVOLVED_CAM_LIST_TODAY}"]["value"]
+                  result = result["data"]["{\$GIA_INVOLVED_AUDS_TODAY}"]["value"]
                   return result
           master_item:
-            key: gia.get.involved.exam_days
+            key: gia.get.involved_exam_days
           tags:
             -
               tag: gia
-              value: service
+              value: scheduler
         -
           uuid: 9a637738609049e89eb6781b5d3735e4
-          name: 'Get Involved Cams Tomorrow'
+          name: 'Get Involved Auditoriums Tomorrow'
           type: DEPENDENT
-          key: gia.get.involved_cams.tomorrow
+          key: gia.get.involved_auds.tomorrow
           delay: '0'
           trends: '0'
           value_type: TEXT
@@ -504,17 +454,17 @@ zabbix_export:
                   var s = d.getFullYear() + "-" + ("00" + (d.getMonth() + 1)).substr(-2) + "-" + ("00" + d.getDate()).substr(-2)
                   var result = {
                     "data": {
-                      "{\$GIA_INVOLVED_CAM_LIST_TOMORROW}": {
-                        "value": ""
+                      "{\$GIA_INVOLVED_AUDS_TOMORROW}": {
+                        "value": "[]"
                       },
-                      "{\$GIA_INVOLVED_PPE_TOMORROW}": {
+                      "{\$GIA_INVOLVED_EXAM_TOMORROW}": {
                         "value": "NO"
                       }
                     }
                   }
                   if (v.hasOwnProperty(s)) {
-                    result["data"]["{\$GIA_INVOLVED_CAM_LIST_TOMORROW}"]["value"] = JSON.stringify(v[s])
-                    result["data"]["{\$GIA_INVOLVED_PPE_TOMORROW}"]["value"] = "YES"
+                    result["data"]["{\$GIA_INVOLVED_AUDS_TOMORROW}"]["value"] = JSON.stringify(v[s])
+                    result["data"]["{\$GIA_INVOLVED_EXAM_TOMORROW}"]["value"] = "YES"
                   }
                   return JSON.stringify(result)
             -
@@ -533,14 +483,14 @@ zabbix_export:
                           "hostids":"{$HOST_ID}",
                           "filter": {
                               "macro": [
-                                  "{\$GIA_INVOLVED_CAM_LIST_TOMORROW}",
-                                  "{\$GIA_INVOLVED_PPE_TOMORROW}"
+                                  "{\$GIA_INVOLVED_AUDS_TOMORROW}",
+                                  "{\$GIA_INVOLVED_EXAM_TOMORROW}"
                               ]
                           }
                       },
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                   }
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
@@ -569,29 +519,29 @@ zabbix_export:
                       "jsonrpc":"2.0",
                       "method":"usermacro.update",
                       "params": result["data"][i],
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                     }
                   
-                    var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                    var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                     if (200 != request.getStatus()) {
                       result["err"] = JSON.stringify(response);
                       return result;
                     }
                   }
-                  result = result["data"]["{\$GIA_INVOLVED_CAM_LIST_TOMORROW}"]["value"]
+                  result = result["data"]["{\$GIA_INVOLVED_AUDS_TOMORROW}"]["value"]
                   return result
           master_item:
-            key: gia.get.involved.exam_days
+            key: gia.get.involved_exam_days
           tags:
             -
               tag: gia
-              value: service
+              value: scheduler
         -
           uuid: e1b433b7af0c4dca9390ac713ccef6a3
-          name: 'Get Involved Cams Total'
+          name: 'Get Involved Auditoriums Total'
           type: DEPENDENT
-          key: gia.get.involved_cams.total
+          key: gia.get.involved_auds.total
           delay: '0'
           trends: '0'
           value_type: TEXT
@@ -632,13 +582,13 @@ zabbix_export:
                           "hostids":"{$HOST_ID}",
                           "filter": {
                               "macro": [
-                                  "{\$GIA_INVOLVED_CAM_LIST_TOTAL}",
+                                  "{\$GIA_INVOLVED_AUDS_TOTAL}"
                               ]
                           }
                       },
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                   }
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
@@ -663,10 +613,10 @@ zabbix_export:
                       "jsonrpc":"2.0",
                       "method":"usermacro.update",
                       "params": JSON.parse(value),
-                      "auth":"999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd","id":1
+                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                   }
                   
-                  var response = request.post("http://11.103.8.101:62929/api_jsonrpc.php", JSON.stringify(data));
+                  var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
                   if (200 != request.getStatus()) {
                     result["err"] = JSON.stringify(response);
@@ -675,6 +625,38 @@ zabbix_export:
                   }
                   
                   return result
+          master_item:
+            key: gia.get.scheduler
+          tags:
+            -
+              tag: gia
+              value: scheduler
+        -
+          uuid: ddf08b17e56741388417c2baf7fe5c21
+          name: 'Get Involved Exam Days'
+          type: DEPENDENT
+          key: gia.get.involved_exam_days
+          delay: '0'
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  v = JSON.parse(value)
+                  const result = {}
+                  for (var i in v) {
+                    var dat = v[i]["Date"]
+                    var aud = v[i]["AudienceCode"]
+                    if (!result.hasOwnProperty(dat)) { result[dat] = {"0000": [1,0], "7777": [1, 0]} }
+                    result[dat][aud] = [Number(v[i]["Online"]), Number(v[i]["OVZ"])]
+                  }
+                  return JSON.stringify(result)
           master_item:
             key: gia.get.scheduler
           tags:
@@ -689,25 +671,25 @@ zabbix_export:
           trends: '0'
           value_type: TEXT
           timeout: 5s
-          url: 'http://11.103.8.101:8080/api/calendar/all'
+          url: '{$GIA_SCHEDULER_URL}'
           tags:
             -
               tag: gia
-              value: service
+              value: scheduler
       discovery_rules:
         -
           uuid: f0f25db4c9f14a8e90f36dce68d53d21
-          name: 'AVS. Discovery IP-cam Config'
+          name: 'Discovery AVS Cam list'
           type: DEPENDENT
-          key: avs.discovery.cam
+          key: avs.discovery.cam_list
           delay: '0'
           lifetime: '0'
           item_prototypes:
             -
               uuid: ab68f0b415734fe8aa7cc337e009513b
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Involved Today to Exam'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Involved Today to Exam'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},involved.exam.today]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -719,24 +701,27 @@ zabbix_export:
                       // Check if IP-cam is Involved
                       if ("" == value) return "NO"
                       //var cam_list = JSON.parse(value)
-                      //var cam = '{#AVSCAMCODE}'
-                      var aud = '{#AVSCAMCODE}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})")[2]
+                      //var cam = '{#AVS_STREAM_ZBX_ID}'
+                      var aud = '{#AVS_STREAM_ZBX_ID}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})_([0-9]{1,2})")[2]
                       
                       return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
               master_item:
-                key: gia.get.involved_cams.today
+                key: gia.get.involved_auds.today
               tags:
                 -
                   tag: avs
-                  value: cam
+                  value: stream
+                -
+                  tag: exam
+                  value: today
                 -
                   tag: gia
                   value: exam
             -
               uuid: b047b8baafe74df2ba8577a791f70c77
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Involved Tomorrow to Exam'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Involved Tomorrow to Exam'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},involved.exam.tomorrow]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.tomorrow]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -748,24 +733,27 @@ zabbix_export:
                       // Check if IP-cam is Involved
                       if ("" == value) return "NO"
                       //var cam_list = JSON.parse(value)
-                      //var cam = '{#AVSCAMCODE}'
-                      var aud = '{#AVSCAMCODE}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})")[2]
+                      //var cam = '{#AVS_STREAM_ZBX_ID}'
+                      var aud = '{#AVS_STREAM_ZBX_ID}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})_([0-9]{1,2})")[2]
                       
                       return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
               master_item:
-                key: gia.get.involved_cams.tomorrow
+                key: gia.get.involved_auds.tomorrow
               tags:
                 -
                   tag: avs
-                  value: cam
+                  value: stream
+                -
+                  tag: exam
+                  value: tomorrow
                 -
                   tag: gia
                   value: exam
             -
               uuid: 82e13960c3c24997b75167605479186b
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Pull Status (Stream Local View)'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Pull Status (Local View)'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},pull]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},pull]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -773,20 +761,26 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVSCAMCODE}''].pull'
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].pull'
               master_item:
                 key: avs.monitoring.sys.cam_dist
               tags:
+                -
+                  tag: avs
+                  value: stream
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: status
             -
               uuid: f3a053e6afd34f7eb438124a795980ab
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Push Status (Stream Translation)'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Push Status (Translation)'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},push]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},push]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -794,20 +788,26 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVSCAMCODE}''].push'
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].push'
               master_item:
                 key: avs.monitoring.sys.cam_dist
               tags:
+                -
+                  tag: avs
+                  value: stream
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: status
             -
               uuid: e09d9206428a4a07bcc5276bebb43523
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". Rec Status (Stream Recording)'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Rec Status (Recording)'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rec]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rec]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -815,321 +815,177 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVSCAMCODE}''].rec'
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].rec'
               master_item:
                 key: avs.monitoring.sys.cam_dist
               tags:
                 -
+                  tag: avs
+                  value: stream
+                -
                   tag: gia
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: status
             -
               uuid: 5f13f9d9fbb64216b659d3f3142a30e4
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Dropped'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.drop]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].audio.droppedBytesCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: 3ae1beef8a78473f8aef332ae228175f
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Sended Delta'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send.delta]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop]'
               delay: '0'
               units: B
               preprocessing:
                 -
-                  type: SIMPLE_CHANGE
+                  type: JSONPATH
                   parameters:
-                    - ''
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.droppedBytesCount'
+                  error_handler: DISCARD_VALUE
               master_item:
-                key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send]'
+                key: avs.monitoring.rtsp.results
               tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: audio
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: codec
             -
               uuid: 4c372b4cc6d0402bbc17697d27d61870
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Bytes. Sended'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Sended'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.byte.send]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].audio.bytesCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: e84c36231bd842d9bc6ff8ce3fa33632
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Dropped'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.drop]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].audio.droppedPacketsCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: a56045a20a97461481397713a20b8c55
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Sended Delta'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send.delta]'
-              delay: '0'
-              preprocessing:
-                -
-                  type: SIMPLE_CHANGE
-                  parameters:
-                    - ''
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send]'
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: 58e809097ed64a89b1caf92a033c2b32
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Packets. Sended'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.a.packet.send]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].audio.packetsCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: 3d7504e651c3401fa793d09356afbd3f
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Audio Codec'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.acodec]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].audio.codec'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-              trigger_prototypes:
-                -
-                  uuid: 6fe046d4b43147c098df1213818a9dee
-                  expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)="AUNK"'
-                  recovery_mode: RECOVERY_EXPRESSION
-                  recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.acodec],#1)<>"AUNK"'
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP AUNK'
-                  priority: DISASTER
-            -
-              uuid: b613f2f8df054fc48e80a7c6c9d58beb
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Dropped'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.drop]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].video.droppedBytesCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: c8beed3ee2004aa58935666d8df6476f
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Sended Delta'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send.delta]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send]'
               delay: '0'
               units: B
               preprocessing:
                 -
-                  type: SIMPLE_CHANGE
+                  type: JSONPATH
                   parameters:
-                    - ''
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.bytesCount'
+                  error_handler: DISCARD_VALUE
               master_item:
-                key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send]'
+                key: avs.monitoring.rtsp.results
               tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: audio
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: codec
+            -
+              uuid: 3d7504e651c3401fa793d09356afbd3f
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Codec'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.codec'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: audio
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: codec
+            -
+              uuid: b613f2f8df054fc48e80a7c6c9d58beb
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.droppedBytesCount'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: video
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: codec
             -
               uuid: d039c54a968a44a592ed106521950cf2
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Bytes. Sended'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Sended'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.byte.send]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send]'
               delay: '0'
-              trends: '0'
-              value_type: TEXT
+              units: B
               preprocessing:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVSCAMCODE}''].video.bytesCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.bytesCount'
+                  error_handler: DISCARD_VALUE
               master_item:
                 key: avs.monitoring.rtsp.results
               tags:
                 -
-                  tag: gia
+                  tag: avs
+                  value: stream
                 -
-                  tag: software
-                  value: avs
-            -
-              uuid: 4ff63520e08f4435931737a6bffa284d
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Dropped'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.drop]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].video.droppedPacketsCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
+                  tag: codec
+                  value: video
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
-            -
-              uuid: 56e8e727178d40c29da9ab684b377bff
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Sended Delta'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send.delta]'
-              delay: '0'
-              preprocessing:
                 -
-                  type: SIMPLE_CHANGE
-                  parameters:
-                    - ''
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send]'
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-            -
-              uuid: 71a2fdbcc9984182a747fb3230e52ac2
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Packets. Sended'
-              type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.v.packet.send]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVSCAMCODE}''].video.packetsCount'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
+                  tag: stream
+                  value: codec
             -
               uuid: 9241075c773b40c3bc93d522b9935fb4
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP Video Codec'
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Codec'
               type: DEPENDENT
-              key: 'avs.cam.[{#AVSCAMCODE},rtsp.vcodec]'
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -1137,41 +993,222 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVSCAMCODE}''].video.codec'
-                  error_handler: CUSTOM_VALUE
-                  error_handler_params: NOSTREAM
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.codec'
+                  error_handler: DISCARD_VALUE
               master_item:
                 key: avs.monitoring.rtsp.results
               tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: video
                 -
                   tag: gia
                 -
                   tag: software
                   value: avs
-              trigger_prototypes:
                 -
-                  uuid: a554b3f32ef14ce9823c51e9a61cc853
-                  expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)="VUNK"'
-                  recovery_mode: RECOVERY_EXPRESSION
-                  recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},rtsp.vcodec],#1)<>"VUNK"'
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
-                  priority: DISASTER
+                  tag: stream
+                  value: codec
+            -
+              uuid: e2f5579cc0a04350a26dec6ebe4e504a
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". UpTime'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},uptime]'
+              delay: '0'
+              value_type: FLOAT
+              units: s
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.[''{#AVS_STREAM_ZBX_ID}''].upTime'
+                  error_handler: DISCARD_VALUE
+                -
+                  type: MULTIPLIER
+                  parameters:
+                    - '0.001'
+              master_item:
+                key: avs.monitoring.rtsp.results
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: uptime
           trigger_prototypes:
             -
-              uuid: 6c9595c761374b56990fe0ee6c0f76d3
-              expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="NO" and last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)="SWITCHEDOFF"'
+              uuid: 1adc25c8a6524380b4a8916af29e55fb
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
               recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="YES" or last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)<>"SWITCHEDOFF"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-              priority: WARNING
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
+              priority: DISASTER
+              tags:
+                -
+                  tag: exam
+                  value: today
             -
               uuid: eb1cb494e3d54a11b6b97209aaad97fb
-              expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="YES" and last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)="SWITCHEDOFF"'
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
               recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},involved.exam.today],#1)="NO" or last(/GIA Template. AVS/avs.cam.[{#AVSCAMCODE},pull],#1)<>"SWITCHEDOFF"'
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
               name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
               priority: DISASTER
               tags:
+                -
+                  tag: avs_cam_action
+                  value: push_on
+                -
+                  tag: avs_cam_action
+                  value: rec_on
+                -
+                  tag: avs_cam_id
+                  value: '{#AVSCAMCODE}'
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: 6c9595c761374b56990fe0ee6c0f76d3
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" and {$GIA_INVOLVED_PPE_TODAY}="NO"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" or ({$GIA_INVOLVED_PPE_TODAY}="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO")'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+              priority: WARNING
+            -
+              uuid: eaa6466045b34866a67f378c07fbe7a2
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#2)<>"RUNNING"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PUSH BACKOFF'
+              priority: DISASTER
+              dependencies:
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              tags:
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: 78196cff0a2a48ababdc62dc76572ddb
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="SWITCHEDOFF"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". PUSH SWITCHEDOFF'
+              priority: DISASTER
+              dependencies:
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              tags:
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: f404bf1eca6041cba1da601bf8054f52
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#2)<>"RUNNING"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". REC BACKOFF'
+              priority: DISASTER
+              dependencies:
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              tags:
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: 7d51b61fe28743949f827410b6fc802a
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="SWITCHEDOFF"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". REC SWITCHEDOFF'
+              priority: DISASTER
+              dependencies:
+                -
+                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
+                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
+                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              tags:
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: 6fe046d4b43147c098df1213818a9dee
+              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec],#2)="AUNK" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES"'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec],#1)<>"AUNK" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP AUNK'
+              priority: DISASTER
+              tags:
+                -
+                  tag: avs_cam_action
+                  value: pull_off
+                -
+                  tag: avs_cam_action
+                  value: push_on
+                -
+                  tag: avs_cam_action
+                  value: rec_off
+                -
+                  tag: avs_cam_action
+                  value: rec_on
+                -
+                  tag: avs_cam_id
+                  value: '{#AVSCAMCODE}'
+                -
+                  tag: exam
+                  value: today
+            -
+              uuid: a554b3f32ef14ce9823c51e9a61cc853
+              expression: |
+                last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES"
+                and
+                last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#1)="VUNK"
+                and
+                countunique(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#2)=1
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#1)<>"VUNK" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
+              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
+              priority: DISASTER
+              tags:
+                -
+                  tag: avs_cam_action
+                  value: pull_off
+                -
+                  tag: avs_cam_action
+                  value: push_on
+                -
+                  tag: avs_cam_action
+                  value: rec_off
+                -
+                  tag: avs_cam_action
+                  value: rec_on
+                -
+                  tag: avs_cam_id
+                  value: '{#AVSCAMCODE}'
                 -
                   tag: exam
                   value: today
@@ -1187,7 +1224,7 @@ zabbix_export:
                     
                   for (var i in x) {
                     result.push({
-                      "{#AVSCAMCODE}": x[i].code
+                      "{#AVS_STREAM_ZBX_ID}": x[i].code
                     })
                   }
                     
@@ -1198,3 +1235,52 @@ zabbix_export:
         -
           tag: software
           value: avs
+      macros:
+        -
+          macro: '{$AVS_STREAM_STATUS_BACKOFF}'
+          value: BACKOFF
+        -
+          macro: '{$AVS_STREAM_STATUS_MISSING}'
+          value: MISSING
+        -
+          macro: '{$AVS_STREAM_STATUS_OFF}'
+          value: SWITCHEDOFF
+        -
+          macro: '{$AVS_STREAM_STATUS_ON}'
+          value: RUNNING
+        -
+          macro: '{$AVS_STREAM_STATUS_STARTING}'
+          value: STARTING
+        -
+          macro: '{$AVS_SYSTEM_USER_NAME}'
+          value: monitoring
+        -
+          macro: '{$AVS_SYSTEM_USER_PASS}'
+          value: Vjybnjhbyu
+        -
+          macro: '{$AVS_URL_MONITORING_PULL}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/pull'
+        -
+          macro: '{$AVS_URL_MONITORING_PULL_DEL}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/pull/del'
+        -
+          macro: '{$AVS_URL_MONITORING_REC}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/rec'
+        -
+          macro: '{$AVS_URL_MONITORING_REC_DEL}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/rec/del'
+        -
+          macro: '{$AVS_URL_MONITORING_RTSP}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/rtsp'
+        -
+          macro: '{$AVS_URL_MONITORING_SYS}'
+          value: 'http://monitoring:Vjybnjhbyu@localhost/monitoring/sys'
+        -
+          macro: '{$GIA_SCHEDULER_URL}'
+          value: 'http://11.103.8.101:8080/api/calendar/all'
+        -
+          macro: '{$GIA_ZABBIX_API_TOKEN}'
+          value: 999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd
+        -
+          macro: '{$GIA_ZABBIX_API_URL}'
+          value: 'http://11.103.8.101:62929/api_jsonrpc.php'

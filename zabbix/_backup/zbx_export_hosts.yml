@@ -1,16 +1,10 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-01T13:38:57Z'
+  date: '2022-06-04T00:34:24Z'
   groups:
-    -
-      uuid: cc825539265b4ae3b1a53d72b65a1483
-      name: GIA
     -
       uuid: aeeab3d998ad4d0fbdc8bebad30ff971
       name: 'GIA. AVS Hosts'
-    -
-      uuid: f520e3292aa3492680c452bdbcf47efd
-      name: 'GIA. OGE'
     -
       uuid: dc579cd7a1a34222933f24f52a68bcd8
       name: 'Linux servers'
@@ -22,53 +16,36 @@ zabbix_export:
         name: '0124'
       templates:
         -
-          name: 'GIA Template. AVS'
+          name: AVS
         -
           name: 'Linux by Zabbix agent'
       groups:
         -
-          name: GIA
-        -
           name: 'GIA. AVS Hosts'
-        -
-          name: 'GIA. OGE'
         -
           name: 'Linux servers'
       interfaces:
         -
           ip: 10.103.120.66
           interface_ref: if1
-      items:
-        -
-          name: TEST_API
-          type: HTTP_AGENT
-          key: test4
-          trends: '0'
-          value_type: TEXT
-          interface_ref: if1
-          url: 'http://11.103.8.101:62929/api_jsonrpc.php'
-          posts: |
-            {
-                "jsonrpc": "2.0",
-                "method": "usermacro.get",
-                "params": {
-                    "output": "extend",
-                    "hostids": "{$HOST_ID}"
-                },
-                "auth": "999e778c92f3b4a7a6f23630fe32840aebf77cfd2fa299ae14a9be10870605bd",
-                "id": 1
-            }
-          post_type: JSON
-          tags:
-            -
-              tag: test
       tags:
         -
           tag: gia
       macros:
         -
-          macro: '{$GIA_INVOLVED_CAM_LIST_TOTAL}'
+          macro: '{$GIA_INVOLVED_AUDS_TODAY}'
+          value: '{"7777":[1,0],"0000":[1,0],"0002":[1,0],"0003":[1,0],"0004":[1,0],"0005":[1,0],"0006":[1,0],"0007":[1,0]}'
+        -
+          macro: '{$GIA_INVOLVED_AUDS_TOMORROW}'
+        -
+          macro: '{$GIA_INVOLVED_AUDS_TOTAL}'
           value: '["0000","0001","0002","0003","0004","0005","0006","0007","0008","0009","0010","7777"]'
+        -
+          macro: '{$GIA_INVOLVED_EXAM_TODAY}'
+          value: 'YES'
+        -
+          macro: '{$GIA_INVOLVED_EXAM_TOMORROW}'
+          value: 'NO'
         -
           macro: '{$GIA_PPE_CODE}'
           value: '0124'
