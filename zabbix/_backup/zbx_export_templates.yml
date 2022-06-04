@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-04T12:27:11Z'
+  date: '2022-06-04T13:07:20Z'
   groups:
     -
       uuid: 45c5f38a92f84f30ade6904d35f2da71
@@ -302,6 +302,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.freeSpace
           delay: '0'
+          units: B
           preprocessing:
             -
               type: JSONPATH
@@ -831,6 +832,38 @@ zabbix_export:
                   tag: stream
                   value: status
             -
+              uuid: 3c717a4615d24f75833920457908605c
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped (Delta)'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop.delta]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+              master_item:
+                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop]'
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: audio
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: codec
+                -
+                  tag: stream
+                  value: drop
+            -
               uuid: 5f13f9d9fbb64216b659d3f3142a30e4
               name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped'
               type: DEPENDENT
@@ -857,6 +890,41 @@ zabbix_export:
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: codec
+                -
+                  tag: stream
+                  value: drop
+            -
+              uuid: 14d13a5079f549c6bd94861ec16b6e1c
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Sended (Byte rate)'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send.bitrate]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send]'
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: audio
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: byterate
                 -
                   tag: stream
                   value: codec
@@ -922,6 +990,38 @@ zabbix_export:
                   tag: stream
                   value: codec
             -
+              uuid: 19c950bc7b0f4cc586205ec7e69de4f5
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped (Delta)'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop.delta]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: SIMPLE_CHANGE
+                  parameters:
+                    - ''
+              master_item:
+                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop]'
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: video
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: codec
+                -
+                  tag: stream
+                  value: drop
+            -
               uuid: b613f2f8df054fc48e80a7c6c9d58beb
               name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped'
               type: DEPENDENT
@@ -948,6 +1048,41 @@ zabbix_export:
                 -
                   tag: software
                   value: avs
+                -
+                  tag: stream
+                  value: codec
+                -
+                  tag: stream
+                  value: drop
+            -
+              uuid: e70406cec81f40d0b42437f3d5559249
+              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Sended (Byte rate)'
+              type: DEPENDENT
+              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send.bitrate]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send]'
+              tags:
+                -
+                  tag: avs
+                  value: stream
+                -
+                  tag: codec
+                  value: video
+                -
+                  tag: gia
+                -
+                  tag: software
+                  value: avs
+                -
+                  tag: stream
+                  value: byterate
                 -
                   tag: stream
                   value: codec
