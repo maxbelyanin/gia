@@ -14,13 +14,13 @@
 {
     "data": {
         "{\$SOME_USER_MACRO}": {
-            "value": "[]"               // default values
+            "value": "[]"               // default values type string (need to stringify objects)
         },
         "{\$ANOTHER_USER_MACRO}": {
-            "value": "blabla"           // default values
+            "value": "blabla"           // default values type string (need to stringify objects)
         },
         "{\$YET_ANOTHER_USER_MACRO}": {
-            "value": ""                 // default value
+            "value": ""                 // default values type string (need to stringify objects)
         },
     }
 }
@@ -29,11 +29,14 @@
 ### 2. Assign HOST Macro value
 
 ```js
-//
+// ZBX API ASSIGN USER MACRO VALUE
 
 // ===========================================================================
 // GET TARGET USER HOST MACRO ID LIST
 var result = JSON.parse(value);
+
+var macroname_list = []
+for (var i in result.data) macroname_list.push(i)
 
 var request = new HttpRequest();
 request.addHeader("Content-Type: application/json-rpc");
@@ -44,17 +47,17 @@ var data = {
         "output":["hostmacroid", "macro"],
         "hostids":"{$HOST_ID}",
         "filter": {
-            "macro": [key for key, value in result.items()]
+            "macro": macroname_list
         }
     },
     "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
 }
 var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
 
-if (200 != request.getStatus()) {
+if (200 != request.getStatus() || JSON.parse(response).hasOwnProperty("error")) {
     result["err"] = {
         "reqv": "usermacro.get",
-        "resp": JSON.stringify(response)
+        "resp": JSON.parse(response)
     }
     return JSON.stringify(result);
 } else {
@@ -77,15 +80,14 @@ for (var i in result["data"]) {
     }
 
     var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
-
-    if (200 != request.getStatus()) {
+    if (200 != request.getStatus() || JSON.parse(response).hasOwnProperty("error")) {
         if(!result.hasOwnProperty("err")) {
             result["err"] = {
                 "reqv": "usermacro.update",
                 "resp": {}
             }
         }
-        result["err"]["resp"][i] = JSON.stringify(response)
+        result["err"]["resp"][i] = (response != "") ? JSON.parse(response) : response
     }
 }
 return JSON.stringify(result)
