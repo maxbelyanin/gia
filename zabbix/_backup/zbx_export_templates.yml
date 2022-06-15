@@ -1,6 +1,6 @@
 zabbix_export:
   version: '6.0'
-  date: '2022-06-04T13:07:20Z'
+  date: '2022-06-15T01:36:12Z'
   groups:
     -
       uuid: 45c5f38a92f84f30ade6904d35f2da71
@@ -14,6 +14,171 @@ zabbix_export:
         -
           name: Templates/GIA
       items:
+        -
+          uuid: cda95614579446af9b924bfe76efdf79
+          name: 'Emit Config'
+          type: HTTP_AGENT
+          key: avs.config.emit
+          trends: '0'
+          value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // GET INVOLVED DATES
+                  var scheduler = JSON.parse(value);
+                  
+                  var involved_dates = {};
+                  
+                  for (var i in scheduler) {
+                      var dat = scheduler[i]["Date"];
+                      var aud = scheduler[i]["AudienceCode"];
+                      if (!involved_dates.hasOwnProperty(dat)) { involved_dates[dat] = {"0000": [1,0], "7777": [1, 0]}; }
+                      involved_dates[dat][aud] = [Number(scheduler[i]["Online"]), Number(scheduler[i]["OVZ"])];
+                  }
+                  
+                  return JSON.stringify(involved_dates)
+                  
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // GET INVOLVED AUDS
+                  var involved_dates = JSON.parse(value);
+                  
+                  var involved_auds = {};
+                  
+                  for (var curr_date in involved_dates) {
+                      for (var curr_aud in involved_dates[curr_date]) {
+                          if (!involved_auds.hasOwnProperty(curr_aud)) involved_auds[curr_aud] = {}
+                          involved_auds[curr_aud][curr_date] = [curr_date.replace(/(\d{4})-(\d{2})-(\d{2})/, "$3-$2-$1")].concat(involved_dates[curr_date][curr_aud]);
+                      }
+                  }
+                  
+                  return JSON.stringify({
+                      "involved_dates": involved_dates,
+                      "involved_auds": involved_auds
+                  })
+                  
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // GET CAM LIST
+                  var result = JSON.parse(value);
+                  
+                  var request = new HttpRequest();
+                  var response = request.get("{$AVS_URL_MONITORING_SYS}");
+                  var response_obj = JSON.parse(response)
+                  
+                  result["cam_list"] = response_obj.cam_list;
+                  result["ppe_code"] = response_obj.name;
+                  
+                  return JSON.stringify(result);
+                  
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // AVS CONFIG; UNUSED STREAMS; MISSING AUDS
+                  var src = JSON.parse(value);
+                  
+                  var ppe_config = {
+                      "involved_dates": src.involved_dates,
+                      "unused_streams": [],
+                      "missing_auds": [],
+                      "streams": {}
+                  };
+                  
+                  var missing_auds_dict = {};
+                  for (var a in src.involved_auds) missing_auds_dict[a]="";
+                  
+                  for (var stream_id in src.cam_list) {
+                      var curr_aud_code = src.cam_list[stream_id]["name"].substr(2,4)
+                      if (src.involved_auds.hasOwnProperty(curr_aud_code)) {
+                          delete missing_auds_dict[curr_aud_code];
+                          
+                          ppe_config.streams[stream_id] = {
+                              "aud_code":     curr_aud_code,
+                              "exam_dates":   JSON.parse(JSON.stringify(src.involved_auds[curr_aud_code])),
+                              "avs_name":     src.cam_list[stream_id]["name"],
+                              "id":           Number(stream_id.substr(5)),
+                              "zbx_id":       src.ppe_code + "_" + curr_aud_code + "_" + src.cam_list[stream_id]["name"].substr(7,1) + "_" + stream_id.substr(5),
+                              "comment":      src.cam_list[stream_id]["comment"],
+                              "cam_url":      src.cam_list[stream_id]["playUrl"]
+                          }
+                      } else {
+                          ppe_config.unused_streams.push(stream_id)
+                      }
+                  }
+                  
+                  for (var k in missing_auds_dict) ppe_config.missing_auds.push(k)
+                  
+                  return JSON.stringify(ppe_config)
+                  
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // CURRENT EXAM DATE; NEXT EXAM DATE
+                  var ppe_config = JSON.parse(value);
+                  
+                  function formatDate(date) {
+                    return date.getFullYear() + "-" + ("00" + (date.getMonth() + 1)).substr(-2) + "-" + ("00" + date.getDate()).substr(-2)
+                  }
+                  
+                  function formatDateDY(date) {
+                    return ("00" + date.getDate()).substr(-2) + "-"  + ("00" + (date.getMonth() + 1)).substr(-2) + "-" + date.getFullYear()
+                  }
+                  
+                  var exam_date_list = []
+                  
+                  for (var date in ppe_config.involved_dates) {
+                    exam_date_list.push(date)
+                  }
+                  
+                  exam_date_list.sort()
+                  
+                  //var now = new Date("2022-06-07" + "T09:00:00.000+03:00")
+                  var now = new Date()
+                  
+                  var exam_date = {
+                    days_next: -1,
+                    date_next: "",
+                    date_exam: []
+                  }
+                  
+                  for (var i in exam_date_list) {
+                    var curr_exam_date = new Date(exam_date_list[i] + "T00:00:00.000+03:00")
+                    var curr_date_diff = now.getTime() - curr_exam_date.getTime()
+                  
+                    if (curr_date_diff < 0) {
+                      exam_date["days_next"] = (Math.abs(curr_date_diff) - (Math.abs(curr_date_diff) % 86400000)) / 86400000 + 1;
+                      exam_date["date_next"] = formatDate(curr_exam_date);
+                      break;
+                    } else if (curr_date_diff < 86400000) {
+                      exam_date["date_exam"][0] = formatDate(curr_exam_date);
+                      exam_date["date_exam"][1] = formatDateDY(curr_exam_date);
+                    }
+                  }
+                  
+                  ppe_config["exam_date"] = exam_date;
+                  
+                  return JSON.stringify(ppe_config);
+                  
+          timeout: 5s
+          url: '{$GIA_SCHEDULER_URL}'
+          tags:
+            -
+              tag: avs
+              value: config
+            -
+              tag: test
         -
           uuid: b2ebb33207ab4bdcb5cf4e6b2545f6f6
           name: 'Check AVS Monitoring RTSP'
@@ -57,6 +222,7 @@ zabbix_export:
           delay: '0'
           history: 1d
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -126,6 +292,7 @@ zabbix_export:
           key: avs.monitoring.sys.avsVersion
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -144,6 +311,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_all
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -161,6 +329,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_proxy_off
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -178,6 +347,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_proxy_on
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -195,6 +365,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_proxy_waiting
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -212,6 +383,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_rec_off
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -229,6 +401,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_rec_on
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -246,6 +419,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.cams.cam_rec_waiting
           delay: '0'
+          status: DISABLED
           preprocessing:
             -
               type: JSONPATH
@@ -264,6 +438,7 @@ zabbix_export:
           key: avs.monitoring.sys.cam_dist
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -294,6 +469,9 @@ zabbix_export:
             key: avs.monitoring.sys
           tags:
             -
+              tag: avs
+              value: monitoring
+            -
               tag: software
               value: avs
         -
@@ -302,6 +480,7 @@ zabbix_export:
           type: DEPENDENT
           key: avs.monitoring.sys.freeSpace
           delay: '0'
+          status: DISABLED
           units: B
           preprocessing:
             -
@@ -321,6 +500,7 @@ zabbix_export:
           key: avs.monitoring.sys.name
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -340,6 +520,7 @@ zabbix_export:
           key: gia.get.involved_auds.today
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -370,8 +551,15 @@ zabbix_export:
               type: JAVASCRIPT
               parameters:
                 - |
-                  // ZABBIX API: GET HOST MACRO
+                  // ZBX API ASSIGN USER MACRO VALUES
+                  
+                  // ===========================================================================
+                  // GET TARGET USER HOST MACRO ID LIST
                   var result = JSON.parse(value);
+                  
+                  var macroname_list = []
+                  for (var i in result.data) macroname_list.push(i)
+                  
                   var request = new HttpRequest();
                   request.addHeader("Content-Type: application/json-rpc");
                   var data = {
@@ -381,55 +569,63 @@ zabbix_export:
                           "output":["hostmacroid", "macro"],
                           "hostids":"{$HOST_ID}",
                           "filter": {
-                              "macro": [
-                                  "{\$GIA_INVOLVED_AUDS_TODAY}",
-                                  "{\$GIA_INVOLVED_EXAM_TODAY}"
-                              ]
+                              "macro": macroname_list
                           }
                       },
                       "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
                   }
                   var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
                   
-                  if (200 != request.getStatus()) {
-                    result["err"] = JSON.stringify(response);
+                  if (200 != request.getStatus() || JSON.parse(response).hasOwnProperty("error")) {
+                      result["err"] = {
+                          "reqv": "usermacro.get",
+                          "resp": JSON.parse(response)
+                      }
+                      return JSON.stringify(result);
                   } else {
-                    var r = JSON.parse(response)["result"]
-                    for (var i in r) {
-                      result["data"][r[i]["macro"]]["hostmacroid"] = r[i]["hostmacroid"]
-                    }
+                      var r = JSON.parse(response)["result"]
+                      for (var i in r) {
+                          result["data"][r[i]["macro"]]["hostmacroid"] = r[i]["hostmacroid"]
+                      }
                   }
                   
-                  return JSON.stringify(result);
+                  // ===========================================================================
+                  // UPDATE TARGET USER HOST MACRO LIST
+                  for (var i in result["data"]) {
+                      var request = new HttpRequest();
+                      request.addHeader("Content-Type: application/json-rpc");
+                      var data = {
+                          "jsonrpc":"2.0",
+                          "method":"usermacro.update",
+                          "params": result["data"][i],
+                          "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
+                      }
+                  
+                      var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
+                      if (200 != request.getStatus() || JSON.parse(response).hasOwnProperty("error")) {
+                          if(!result.hasOwnProperty("err")) {
+                              result["err"] = {
+                                  "reqv": "usermacro.update",
+                                  "resp": {}
+                              }
+                          }
+                          result["err"]["resp"][i] = (response != "") ? JSON.parse(response) : response
+                      }
+                  }
+                  return JSON.stringify(result)
+                  
             -
               type: JAVASCRIPT
               parameters:
                 - |
-                  // ZABBIX API: UPDATE HOST MACRO
+                  // RETURN ITEM VALUE
                   result = JSON.parse(value);
+                  
                   if(result.hasOwnProperty("err")) {
                    return JSON.stringify(result);
                   }
                   
-                  for (var i in result["data"]) {
-                    var request = new HttpRequest();
-                    request.addHeader("Content-Type: application/json-rpc");
-                    var data = {
-                      "jsonrpc":"2.0",
-                      "method":"usermacro.update",
-                      "params": result["data"][i],
-                      "auth":"{$GIA_ZABBIX_API_TOKEN}","id":1
-                    }
-                  
-                    var response = request.post("{$GIA_ZABBIX_API_URL}", JSON.stringify(data));
-                  
-                    if (200 != request.getStatus()) {
-                      result["err"] = JSON.stringify(response);
-                      return result;
-                    }
-                  }
-                  result = result["data"]["{\$GIA_INVOLVED_AUDS_TODAY}"]["value"]
-                  return result
+                  return result["data"]["{\$GIA_INVOLVED_AUDS_TODAY}"]["value"]
           master_item:
             key: gia.get.involved_exam_days
           tags:
@@ -443,6 +639,7 @@ zabbix_export:
           key: gia.get.involved_auds.tomorrow
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -545,6 +742,7 @@ zabbix_export:
           key: gia.get.involved_auds.total
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -639,6 +837,7 @@ zabbix_export:
           key: gia.get.involved_exam_days
           delay: '0'
           trends: '0'
+          status: DISABLED
           value_type: TEXT
           preprocessing:
             -
@@ -666,11 +865,17 @@ zabbix_export:
               value: service
         -
           uuid: ccb0f634854f400f93334cead18bdd12
-          name: 'Get Scheduler'
+          name: 'Get GIA Scheduler'
           type: HTTP_AGENT
           key: gia.get.scheduler
           trends: '0'
+          status: DISABLED
           value_type: TEXT
+          preprocessing:
+            -
+              type: JSONPATH
+              parameters:
+                - '$.[?(@.PPECode==''{$GIA_PPE_CODE}'')]'
           timeout: 5s
           url: '{$GIA_SCHEDULER_URL}'
           tags:
@@ -679,82 +884,17 @@ zabbix_export:
               value: scheduler
       discovery_rules:
         -
-          uuid: f0f25db4c9f14a8e90f36dce68d53d21
-          name: 'Discovery AVS Cam list'
+          uuid: 5f2d919a53bb49eba6e0d6910087232a
+          name: 'Discovery Examing Today'
           type: DEPENDENT
-          key: avs.discovery.cam_list
+          key: avs.discovery.exam.today
           delay: '0'
-          lifetime: '0'
           item_prototypes:
             -
-              uuid: ab68f0b415734fe8aa7cc337e009513b
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Involved Today to Exam'
+              uuid: 0b585047a61d40cca3040287b4a41317
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". Pull Status (Local View) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JAVASCRIPT
-                  parameters:
-                    - |
-                      // Check if IP-cam is Involved
-                      if ("" == value) return "NO"
-                      //var cam_list = JSON.parse(value)
-                      //var cam = '{#AVS_STREAM_ZBX_ID}'
-                      var aud = '{#AVS_STREAM_ZBX_ID}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})_([0-9]{1,2})")[2]
-                      
-                      return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
-              master_item:
-                key: gia.get.involved_auds.today
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: exam
-                  value: today
-                -
-                  tag: gia
-                  value: exam
-            -
-              uuid: b047b8baafe74df2ba8577a791f70c77
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Involved Tomorrow to Exam'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.tomorrow]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JAVASCRIPT
-                  parameters:
-                    - |
-                      // Check if IP-cam is Involved
-                      if ("" == value) return "NO"
-                      //var cam_list = JSON.parse(value)
-                      //var cam = '{#AVS_STREAM_ZBX_ID}'
-                      var aud = '{#AVS_STREAM_ZBX_ID}'.match("([0-9]{4})_([0-9]{4})_([0-9]{1})_([0-9]{1,2})")[2]
-                      
-                      return (JSON.parse(value).hasOwnProperty(aud)) ? "YES" : "NO"
-              master_item:
-                key: gia.get.involved_auds.tomorrow
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: exam
-                  value: tomorrow
-                -
-                  tag: gia
-                  value: exam
-            -
-              uuid: 82e13960c3c24997b75167605479186b
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Pull Status (Local View)'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},pull]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -762,26 +902,47 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].pull'
+                    - '$.cam_list.[''{#AVS_EXAM_STREAM_ID}''].pull'
               master_item:
-                key: avs.monitoring.sys.cam_dist
+                key: avs.monitoring.sys
               tags:
                 -
-                  tag: avs
-                  value: stream
+                  tag: test
+                  value: test
+              trigger_prototypes:
                 -
-                  tag: gia
+                  uuid: c909da5656db4cfc8545e60a6fd915fd
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"" and last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"RUNNING"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="" or last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="RUNNING"'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL BACKOFF [EXAM]'
+                  priority: DISASTER
+                  tags:
+                    -
+                      tag: avs_stream_action
+                      value: pull_del
+                    -
+                      tag: test
+                      value: test
+                    -
+                      tag: tt
+                      value: '{#AVS_EXAM_STREAM_ID}'
                 -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: status
+                  uuid: 733e4bf81fbe4462970a005cfa212553
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)=""'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>""'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL SWITCHEDOFF [EXAM]'
+                  priority: DISASTER
+                  tags:
+                    -
+                      tag: test
+                      value: test
             -
-              uuid: f3a053e6afd34f7eb438124a795980ab
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Push Status (Translation)'
+              uuid: 1a717ff7a06141c3a8559ae6572581c8
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". Push Status (Translation) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},push]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -789,26 +950,55 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].push'
+                    - '$.cam_list.[''{#AVS_EXAM_STREAM_ID}''].push'
               master_item:
-                key: avs.monitoring.sys.cam_dist
+                key: avs.monitoring.sys
               tags:
                 -
-                  tag: avs
-                  value: stream
+                  tag: test
+                  value: test
+              trigger_prototypes:
                 -
-                  tag: gia
+                  uuid: 25ef2785b25846249b50387f4d317491
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)<>"" and last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)<>"RUNNING"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)="" or last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)="RUNNING"'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PUSH BACKOFF [EXAM]'
+                  priority: DISASTER
+                  dependencies:
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL BACKOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"" and last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"RUNNING"'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="" or last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="RUNNING"'
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL SWITCHEDOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)=""'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>""'
+                  tags:
+                    -
+                      tag: test
+                      value: test
                 -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: status
+                  uuid: abedc7c91c5240779ce32260e2d35517
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)=""'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},push],#1)<>""'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PUSH SWITCHEDOFF [EXAM]'
+                  priority: DISASTER
+                  dependencies:
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL SWITCHEDOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)=""'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>""'
+                  tags:
+                    -
+                      tag: test
+                      value: test
             -
-              uuid: e09d9206428a4a07bcc5276bebb43523
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". Rec Status (Recording)'
+              uuid: be64b22c54234dba97979fe124a4f870
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". Rec Status (Recording) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rec]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -816,91 +1006,55 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].rec'
+                    - '$.cam_list.[''{#AVS_EXAM_STREAM_ID}''].rec'
               master_item:
-                key: avs.monitoring.sys.cam_dist
+                key: avs.monitoring.sys
               tags:
                 -
-                  tag: avs
-                  value: stream
+                  tag: test
+                  value: test
+              trigger_prototypes:
                 -
-                  tag: gia
+                  uuid: b5ac329945074b6bade3001c599220bb
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)<>"" and last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)<>"RUNNING"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)="" or last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)="RUNNING"'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". REC BACKOFF [EXAM]'
+                  priority: DISASTER
+                  dependencies:
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL BACKOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"" and last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>"RUNNING"'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="" or last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)="RUNNING"'
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL SWITCHEDOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)=""'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>""'
+                  tags:
+                    -
+                      tag: test
+                      value: test
                 -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: status
+                  uuid: 204a11d7745d4511bafc3cd0bd430f96
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)=""'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rec],#1)<>""'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". REC SWITCHEDOFF [EXAM]'
+                  priority: DISASTER
+                  dependencies:
+                    -
+                      name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". PULL SWITCHEDOFF [EXAM]'
+                      expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)=""'
+                      recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},pull],#1)<>""'
+                  tags:
+                    -
+                      tag: test
+                      value: test
             -
-              uuid: 3c717a4615d24f75833920457908605c
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped (Delta)'
+              uuid: d804d3a9a274428ca94dbae9b1655629
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped (Delta) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop.delta]'
-              delay: '0'
-              units: B
-              preprocessing:
-                -
-                  type: SIMPLE_CHANGE
-                  parameters:
-                    - ''
-              master_item:
-                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop]'
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: audio
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
-                -
-                  tag: stream
-                  value: drop
-            -
-              uuid: 5f13f9d9fbb64216b659d3f3142a30e4
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.drop]'
-              delay: '0'
-              units: B
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.droppedBytesCount'
-                  error_handler: DISCARD_VALUE
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: audio
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
-                -
-                  tag: stream
-                  value: drop
-            -
-              uuid: 14d13a5079f549c6bd94861ec16b6e1c
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Sended (Byte rate)'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send.bitrate]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.drop.delta]'
               delay: '0'
               units: B
               preprocessing:
@@ -909,156 +1063,36 @@ zabbix_export:
                   parameters:
                     - ''
               master_item:
-                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send]'
+                key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.drop]'
               tags:
                 -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: audio
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: byterate
-                -
-                  tag: stream
-                  value: codec
+                  tag: test
+                  value: test
             -
-              uuid: 4c372b4cc6d0402bbc17697d27d61870
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Bytes. Sended'
+              uuid: 71f5cb1a329546a5ab1264f2798abe0f
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Audio Bytes. Dropped [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.a.byte.send]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.drop]'
               delay: '0'
               units: B
               preprocessing:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.bytesCount'
-                  error_handler: DISCARD_VALUE
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].audio.droppedBytesCount.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
               master_item:
-                key: avs.monitoring.rtsp.results
+                key: avs.monitoring.rtsp
               tags:
                 -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: audio
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
+                  tag: test
+                  value: test
             -
-              uuid: 3d7504e651c3401fa793d09356afbd3f
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Audio Codec'
+              uuid: 181d3634ad8f4049bb1e328001c4f1b1
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Audio Bytes. Sent (Byte Rate) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec]'
-              delay: '0'
-              trends: '0'
-              value_type: TEXT
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].audio.codec'
-                  error_handler: DISCARD_VALUE
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: audio
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
-            -
-              uuid: 19c950bc7b0f4cc586205ec7e69de4f5
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped (Delta)'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop.delta]'
-              delay: '0'
-              units: B
-              preprocessing:
-                -
-                  type: SIMPLE_CHANGE
-                  parameters:
-                    - ''
-              master_item:
-                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop]'
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: video
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
-                -
-                  tag: stream
-                  value: drop
-            -
-              uuid: b613f2f8df054fc48e80a7c6c9d58beb
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.drop]'
-              delay: '0'
-              units: B
-              preprocessing:
-                -
-                  type: JSONPATH
-                  parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.droppedBytesCount'
-                  error_handler: DISCARD_VALUE
-              master_item:
-                key: avs.monitoring.rtsp.results
-              tags:
-                -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: video
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
-                -
-                  tag: stream
-                  value: drop
-            -
-              uuid: e70406cec81f40d0b42437f3d5559249
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Sended (Byte rate)'
-              type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send.bitrate]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.sent.bitrate]'
               delay: '0'
               units: B
               preprocessing:
@@ -1067,60 +1101,36 @@ zabbix_export:
                   parameters:
                     - ''
               master_item:
-                key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send]'
+                key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.sent]'
               tags:
                 -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: video
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: byterate
-                -
-                  tag: stream
-                  value: codec
+                  tag: test
+                  value: test
             -
-              uuid: d039c54a968a44a592ed106521950cf2
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Bytes. Sended'
+              uuid: 7053a6a45da54481b564bc18061ba2cc
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Audio Bytes. Sent [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.v.byte.send]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.a.byte.sent]'
               delay: '0'
               units: B
               preprocessing:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.bytesCount'
-                  error_handler: DISCARD_VALUE
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].audio.bytesCount.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
               master_item:
-                key: avs.monitoring.rtsp.results
+                key: avs.monitoring.rtsp
               tags:
                 -
-                  tag: avs
-                  value: stream
-                -
-                  tag: codec
-                  value: video
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
+                  tag: test
+                  value: test
             -
-              uuid: 9241075c773b40c3bc93d522b9935fb4
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". RTSP Video Codec'
+              uuid: 15dd1c7961c5427ea145b42961f7c2c5
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Audio Codec [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.acodec]'
               delay: '0'
               trends: '0'
               value_type: TEXT
@@ -1128,30 +1138,139 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].video.codec'
-                  error_handler: DISCARD_VALUE
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].audio.codec.first()'
+                  error_handler: CUSTOM_VALUE
               master_item:
-                key: avs.monitoring.rtsp.results
+                key: avs.monitoring.rtsp
               tags:
                 -
-                  tag: avs
-                  value: stream
+                  tag: test
+                  value: test
+              trigger_prototypes:
                 -
-                  tag: codec
-                  value: video
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: codec
+                  uuid: 6ea5c5267d9447eea5eeb91f40af3efc
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.acodec],#1)="AUNK"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.acodec],#1)<>"AUNK"'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP AUNK [EXAM]'
+                  priority: DISASTER
+                  tags:
+                    -
+                      tag: test
+                      value: test
             -
-              uuid: e2f5579cc0a04350a26dec6ebe4e504a
-              name: 'AVS Stream ID: "{#AVS_STREAM_ZBX_ID}". UpTime'
+              uuid: d8f6b33ba8e34354a98dc3a54f70fe41
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped (Delta) [EXAM]'
               type: DEPENDENT
-              key: 'avs.stream.[{#AVS_STREAM_ZBX_ID},uptime]'
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.drop.delta]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.drop]'
+              tags:
+                -
+                  tag: test
+                  value: test
+            -
+              uuid: 5a9d88e3e517417ca1fc4719775459f9
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Video Bytes. Dropped [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.drop]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].video.droppedBytesCount.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: avs.monitoring.rtsp
+              tags:
+                -
+                  tag: test
+                  value: test
+            -
+              uuid: fd74956d36cd477681b50aeb01769496
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Video Bytes. Sent (Byte Rate) [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.sent.bitrate]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.sent]'
+              tags:
+                -
+                  tag: test
+                  value: test
+            -
+              uuid: 3441b0a7b7794913ae762d1b77132d7f
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Video Bytes. Sent [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.v.byte.sent]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].video.bytesCount.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: avs.monitoring.rtsp
+              tags:
+                -
+                  tag: test
+                  value: test
+            -
+              uuid: d0c1e00978674c33a4ba2f9c21017316
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP Video Codec [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.vcodec]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                -
+                  type: JSONPATH
+                  parameters:
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].video.codec.first()'
+                  error_handler: CUSTOM_VALUE
+              master_item:
+                key: avs.monitoring.rtsp
+              tags:
+                -
+                  tag: test
+                  value: test
+              trigger_prototypes:
+                -
+                  uuid: b0fa7f620c94437c90dd8766cc8cc903
+                  expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.vcodec],#1)="VUNK"'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/AVS/exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},rtsp.vcodec],#1)<>"VUNK"'
+                  name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". RTSP VUNK [EXAM]'
+                  priority: DISASTER
+                  tags:
+                    -
+                      tag: test
+                      value: test
+            -
+              uuid: d997f5d99f0d40f6b22ab872a5814503
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". UpTime [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream.[{#AVS_EXAM_STREAM_ZBX_ID},uptime]'
               delay: '0'
               value_type: FLOAT
               units: s
@@ -1159,211 +1278,77 @@ zabbix_export:
                 -
                   type: JSONPATH
                   parameters:
-                    - '$.[''{#AVS_STREAM_ZBX_ID}''].upTime'
-                  error_handler: DISCARD_VALUE
+                    - '$.results[?(@.online=="true" && @.name==''{#AVS_EXAM_STREAM_ID}'')].upTime.first()'
+                  error_handler: CUSTOM_VALUE
                 -
                   type: MULTIPLIER
                   parameters:
                     - '0.001'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
               master_item:
-                key: avs.monitoring.rtsp.results
+                key: avs.monitoring.rtsp
               tags:
                 -
-                  tag: avs
-                  value: stream
-                -
-                  tag: gia
-                -
-                  tag: software
-                  value: avs
-                -
-                  tag: stream
-                  value: uptime
-          trigger_prototypes:
+                  tag: test
+                  value: test
             -
-              uuid: 1adc25c8a6524380b4a8916af29e55fb
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
-              priority: DISASTER
+              uuid: a7286d4db38b473488305aea019788f7
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". Rec Status (File Write Byte Rate) [EXAM]'
+              type: DEPENDENT
+              key: 'exam.avs.stream[{#AVS_EXAM_STREAM_REC_PATH},rec.file.write.byterate]'
+              delay: '0'
+              units: B
+              preprocessing:
+                -
+                  type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: 'vfs.dir.size[{#AVS_EXAM_STREAM_REC_PATH}]'
               tags:
                 -
-                  tag: exam
-                  value: today
+                  tag: test
+                  value: test
             -
-              uuid: eb1cb494e3d54a11b6b97209aaad97fb
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-              priority: DISASTER
+              uuid: ed55988e935940d4b4204ab174e15cd7
+              name: 'AVS Stream ID: "{#AVS_EXAM_STREAM_ZBX_ID}". Rec Status (File Write) [EXAM]'
+              key: 'vfs.dir.size[{#AVS_EXAM_STREAM_REC_PATH}]'
+              units: B
               tags:
                 -
-                  tag: avs_cam_action
-                  value: push_on
-                -
-                  tag: avs_cam_action
-                  value: rec_on
-                -
-                  tag: avs_cam_id
-                  value: '{#AVSCAMCODE}'
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: 6c9595c761374b56990fe0ee6c0f76d3
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" and {$GIA_INVOLVED_PPE_TODAY}="NO"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" or ({$GIA_INVOLVED_PPE_TODAY}="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO")'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-              priority: WARNING
-            -
-              uuid: eaa6466045b34866a67f378c07fbe7a2
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#2)<>"RUNNING"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PUSH BACKOFF'
-              priority: DISASTER
-              dependencies:
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              tags:
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: 78196cff0a2a48ababdc62dc76572ddb
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)="SWITCHEDOFF"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},push],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". PUSH SWITCHEDOFF'
-              priority: DISASTER
-              dependencies:
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              tags:
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: f404bf1eca6041cba1da601bf8054f52
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#2)<>"RUNNING"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". REC BACKOFF'
-              priority: DISASTER
-              dependencies:
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL BACKOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"SWITCHEDOFF"  and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#2)<>"RUNNING"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="RUNNING" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              tags:
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: 7d51b61fe28743949f827410b6fc802a
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)="SWITCHEDOFF"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rec],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". REC SWITCHEDOFF'
-              priority: DISASTER
-              dependencies:
-                -
-                  name: 'AVS IP-Cam "{#AVSCAMCODE}". PULL SWITCHEDOFF'
-                  expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)="SWITCHEDOFF"'
-                  recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},pull],#1)<>"SWITCHEDOFF" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              tags:
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: 6fe046d4b43147c098df1213818a9dee
-              expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec],#2)="AUNK" and last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES"'
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.acodec],#1)<>"AUNK" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP AUNK'
-              priority: DISASTER
-              tags:
-                -
-                  tag: avs_cam_action
-                  value: pull_off
-                -
-                  tag: avs_cam_action
-                  value: push_on
-                -
-                  tag: avs_cam_action
-                  value: rec_off
-                -
-                  tag: avs_cam_action
-                  value: rec_on
-                -
-                  tag: avs_cam_id
-                  value: '{#AVSCAMCODE}'
-                -
-                  tag: exam
-                  value: today
-            -
-              uuid: a554b3f32ef14ce9823c51e9a61cc853
-              expression: |
-                last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="YES"
-                and
-                last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#1)="VUNK"
-                and
-                countunique(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#2)=1
-              recovery_mode: RECOVERY_EXPRESSION
-              recovery_expression: 'last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},rtsp.vcodec],#1)<>"VUNK" or last(/AVS/avs.stream.[{#AVS_STREAM_ZBX_ID},involved.exam.today],#1)="NO"'
-              name: 'AVS IP-Cam "{#AVSCAMCODE}". RTSP VUNK'
-              priority: DISASTER
-              tags:
-                -
-                  tag: avs_cam_action
-                  value: pull_off
-                -
-                  tag: avs_cam_action
-                  value: push_on
-                -
-                  tag: avs_cam_action
-                  value: rec_off
-                -
-                  tag: avs_cam_action
-                  value: rec_on
-                -
-                  tag: avs_cam_id
-                  value: '{#AVSCAMCODE}'
-                -
-                  tag: exam
-                  value: today
+                  tag: test
+                  value: test
           master_item:
-            key: avs.monitoring.sys.cam_dist
+            key: avs.config.emit
           preprocessing:
             -
               type: JAVASCRIPT
               parameters:
                 - |
-                  var x = JSON.parse(value);
+                  // ASSIGN DISCOVERY MACROS
+                  // #AVS_EXAM_STREAM_ID
+                  // #AVS_EXAM_AUD_CODE
+                  // #AVS_EXAM_STREAM_ZBX_ID
+                  
+                  var ppe_config = JSON.parse(value);
                   var result = []
-                    
-                  for (var i in x) {
+                  
+                  if (!ppe_config.exam_date.date_exam.length) return result
+                  
+                  for (var stream_id in ppe_config.streams) {
+                    if (!ppe_config.streams[stream_id]["exam_dates"].hasOwnProperty(ppe_config.exam_date.date_exam[0])) continue;
+                  
                     result.push({
-                      "{#AVS_STREAM_ZBX_ID}": x[i].code
+                      "{#AVS_EXAM_STREAM_ID}":        stream_id,
+                      "{#AVS_EXAM_STREAM_NAME}":      ppe_config.streams[stream_id]["avs_name"],
+                      "{#AVS_EXAM_STREAM_ZBX_ID}":    ppe_config.streams[stream_id]["zbx_id"],
+                      "{#AVS_EXAM_STREAM_REC_PATH}":  '{$AVS_RECFILE_PATH_BASE}' + "/" + stream_id + "/" + ppe_config.exam_date.date_exam[1]
                     })
                   }
                     
                   return JSON.stringify(result)
+                  
       tags:
         -
           tag: gia
@@ -1371,6 +1356,9 @@ zabbix_export:
           tag: software
           value: avs
       macros:
+        -
+          macro: '{$AVS_RECFILE_PATH_BASE}'
+          value: /opt/avs/media/
         -
           macro: '{$AVS_STREAM_STATUS_BACKOFF}'
           value: BACKOFF
@@ -1419,3 +1407,6 @@ zabbix_export:
         -
           macro: '{$GIA_ZABBIX_API_URL}'
           value: 'http://11.103.8.101:62929/api_jsonrpc.php'
+        -
+          macro: '{$TESTEST}'
+          value: '1234_5678_0_94'
