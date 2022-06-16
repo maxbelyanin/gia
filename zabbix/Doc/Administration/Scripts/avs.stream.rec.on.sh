@@ -1,7 +1,7 @@
 #!/bin/sh
 
-stream_name=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_name") | .value')
 stream_uri=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_uri") | .value')
+stream_name=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_name") | .value')
 stream_title=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_title") | .value')
 stream_comment=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_comment") | .value')
 stream_ovz=$(echo $jsontags | jq '.[] | select(.tag=="avs_stream_ovz") | .value == "true"')
